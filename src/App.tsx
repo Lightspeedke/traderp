@@ -626,13 +626,24 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Balance display widget */}
-            <div className="text-right hidden sm:block">
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-                {accountType} wallet balance:
-              </span>
-              <div className="text-base font-mono font-black text-white">
-                KSh {accountType === "Demo" ? demoBalance.toLocaleString(undefined, { minimumFractionDigits: 2 }) : liveBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {/* Balance display widget - Enhanced Card */}
+            <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-slate-900/40 to-slate-800/30 border border-slate-700/30 backdrop-blur-sm">
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold block mb-0.5">
+                  {accountType} Balance
+                </span>
+                <div className="text-lg font-mono font-black text-white">
+                  KSh {accountType === "Demo" ? demoBalance.toLocaleString(undefined, { minimumFractionDigits: 2 }) : liveBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-transform hover:scale-110 ${
+                accountType === "Demo"
+                  ? 'bg-[#00b59c]/10 border border-[#00b59c]/30'
+                  : liveBalance > 0
+                  ? 'bg-emerald-600/20 border border-emerald-600/40'
+                  : 'bg-amber-600/10 border border-amber-600/30'
+              }`}>
+                {accountType === "Demo" ? '🧪' : liveBalance > 0 ? '💰' : '📱'}
               </div>
             </div>
 

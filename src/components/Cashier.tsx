@@ -259,18 +259,44 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
         </div>
       )}
 
-      {/* Primary header banner */}
-      <div className="p-5 bg-gradient-to-r from-[#131722] to-[#0b0e11] border-b border-[#1e222d] flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Smartphone className="w-5 h-5 text-[#00b59c]" />
-          <h2 className="font-sans font-bold text-slate-100">
-            Cashier Portal
-          </h2>
-        </div>
-        <div className="text-right">
-          <span className="text-xs text-slate-400">Live Balance:</span>
-          <div className="text-lg font-mono font-bold text-white tracking-wide">
-            KSh {liveBalance.toLocaleString()}
+      {/* Primary header banner with balance card */}
+      <div className="p-5 bg-gradient-to-r from-[#131722] to-[#0b0e11] border-b border-[#1e222d]">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-2">
+            <Smartphone className="w-5 h-5 text-[#00b59c]" />
+            <h2 className="font-sans font-bold text-slate-100">
+              Cashier Portal
+            </h2>
+          </div>
+          
+          {/* Beautiful Balance Card */}
+          <div className="bg-gradient-to-br from-emerald-900/30 to-emerald-950/50 border border-emerald-700/40 rounded-xl p-4 shadow-lg flex-1 md:flex-none md:min-w-64">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-semibold text-emerald-300/80 uppercase tracking-wider block mb-1">
+                  💳 Live Account Balance
+                </span>
+                <div className="text-3xl font-mono font-black text-emerald-100 leading-none">
+                  KSh {liveBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </div>
+                <span className={`text-xs mt-2 font-semibold inline-block px-2 py-1 rounded-lg transition-colors ${
+                  liveBalance > 0 
+                    ? 'bg-emerald-600/30 text-emerald-200 border border-emerald-600/50' 
+                    : 'bg-amber-600/20 text-amber-200 border border-amber-600/30'
+                }`}>
+                  {liveBalance > 0 ? '✓ Funded' : '⚠ Fund Account'}
+                </span>
+              </div>
+              <div className="text-right">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-transform hover:scale-110 ${
+                  liveBalance > 0 
+                    ? 'bg-emerald-600/20 border border-emerald-600/40' 
+                    : 'bg-amber-600/10 border border-amber-600/30'
+                }`}>
+                  {liveBalance > 0 ? '💰' : '📱'}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
