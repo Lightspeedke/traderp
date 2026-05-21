@@ -1,4 +1,4 @@
-import { readDb, writeDb, formatKenyanPhone, sanitizeString, getPublicBaseUrl, PAYHERO_API_URL, PAYHERO_CHANNEL_ID, PAYHERO_ACCOUNT_ID, PAYHERO_CREDENTIAL_ID, PAYHERO_REQUEST_TIMEOUT_MS, PAYHERO_BASIC_AUTH_TOKEN, genTxId } from "../_utils";
+import { readDb, writeDb, formatKenyanPhone, sanitizeString, getPublicBaseUrl, PAYHERO_API_URL, PAYHERO_CHANNEL_ID, PAYHERO_CREDENTIAL_ID, PAYHERO_REQUEST_TIMEOUT_MS, PAYHERO_BASIC_AUTH_TOKEN, genTxId } from "../_utils";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -35,12 +35,11 @@ export default async function handler(req: any, res: any) {
       external_reference: txId,
       customer_name: sanitizeString(customer_name || "TraderPro254 Client"),
       callback_url: callback_url,
-      ...(PAYHERO_ACCOUNT_ID && { account_id: PAYHERO_ACCOUNT_ID }),
-      ...(PAYHERO_CREDENTIAL_ID && { credential_id: PAYHERO_CREDENTIAL_ID })
+      ...(PAYHERO_CREDENTIAL_ID ? { credential_id: PAYHERO_CREDENTIAL_ID } : {})
     };
 
     if (!PAYHERO_BASIC_AUTH_TOKEN) {
-      return res.status(500).json({ error: "PayHero auth credentials are missing. Set PAYHERO_BASIC_AUTH_TOKEN or PAYHERO_API_USERNAME/PAYHERO_API_PASSWORD in environment." });
+      return res.status(500).json({ error: "PayHero auth credentials are missing from the server configuration." });
     }
 
     const controller = new AbortController();
@@ -97,7 +96,11 @@ export default async function handler(req: any, res: any) {
         txId: txId
       });
     } else {
-      return res.status(400).json({ success: false, error: result.message || result.error || "M-Pesa Express network busy. Please retry in some seconds." });
+      return res.status(apiResponse.status || 400).json({
+        success: false,
+        error: result.message || result.error || result.detail || "M-Pesa Express network busy. Please retry in some seconds.",
+        payhero: result
+      });
     }
 
   } catch (error: any) {
@@ -105,6 +108,13 @@ export default async function handler(req: any, res: any) {
     const message = error?.name === "AbortError"
       ? "PayHero took too long to respond. Please retry in a few seconds."
       : `PayHero connection failed: ${error?.message || "Unknown server error"}`;
-    res.status(502).json({ error: message });
+    res.status(502).json({
+      error: message,
+      details: {
+        name: error?.name,
+        code: error?.code,
+        cause: error?.cause?.message || error?.cause?.code
+      }
+    });
   }
 }

@@ -35,6 +35,18 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
   // Quick select amounts
   const quickAmounts = [250, 500, 1000, 2500, 5000, 10000];
 
+  const formatPaymentError = (data: any, status?: number) => {
+    const parts = [
+      data?.error,
+      data?.payhero?.message,
+      data?.payhero?.error,
+      data?.payhero?.detail,
+      data?.raw,
+    ].filter(Boolean);
+    const message = parts.length ? parts.join(" | ") : "Payment request could not be completed. Please try again.";
+    return status ? `${message} (HTTP ${status})` : message;
+  };
+
   useEffect(() => {
     if (userProfile) {
       setProfileFullName(userProfile.name || "");
@@ -59,7 +71,7 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
 
     setIsApiLoading(true);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     
     try {
       // Initiate M-Pesa STK Push to Safaricom line via secured server endpoint
@@ -90,7 +102,7 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
       }
 
       if (!response.ok) {
-        setApiError(data.error || "Payment request could not be completed. Please try again.");
+        setApiError(formatPaymentError(data, response.status));
         setIsProcessingStk(true);
         setStkStep("error");
       } else {
@@ -103,7 +115,7 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
       if (err.name === "AbortError") {
         setApiError("Request timed out. Server took too long to respond. Please check your connection and retry.");
       } else {
-        setApiError("Connection error. Please check your internet and retry.");
+        setApiError(`Connection error: ${err?.message || "Please check your internet and retry."}`);
       }
       setIsProcessingStk(true);
       setStkStep("error");
@@ -133,7 +145,7 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
   // Real direct polling check for actual M-Pesa push callback confirmation
   const triggerAutoSyncUpdate = async (finalAmount: number, txReference: string) => {
     try {
-      const checkResponse = await fetch(`/api/payhero/status/${txReference}?userEmail=${userProfile ? encodeURIComponent(userProfile.email) : ""}`);
+      const checkResponse = await fetch(`/api/payhero/status?txId=${encodeURIComponent(txReference)}&userEmail=${userProfile ? encodeURIComponent(userProfile.email) : ""}`);
       const checkData = await checkResponse.json();
       
       if (checkResponse.ok && checkData.tx) {

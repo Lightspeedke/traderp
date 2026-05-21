@@ -148,7 +148,16 @@
     "liveBalance": 100,
     "demoBalance": 1000000,
     "createdAt": "2026-05-21T08:12:21.345Z",
-    "transactions": [],
+    "transactions": [
+      {
+        "id": "PRORQN42563",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Pending",
+        "timestamp": 1779368344831
+      }
+    ],
     "contracts": []
   }
 }

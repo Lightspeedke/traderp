@@ -58,19 +58,12 @@ export function getPublicBaseUrl(req: any): string {
   return `${protocol}://${host}`;
 }
 
-export const PAYHERO_API_URL = process.env.PAYHERO_API_URL || "https://backend.payhero.co.ke/api/v2/payments";
-export const PAYHERO_CHANNEL_ID = Number(process.env.PAYHERO_CHANNEL_ID || "1567");
-export const PAYHERO_ACCOUNT_ID = process.env.PAYHERO_ACCOUNT_ID?.trim() || "";
-export const PAYHERO_CREDENTIAL_ID = process.env.PAYHERO_CREDENTIAL_ID || "";
-export const PAYHERO_REQUEST_TIMEOUT_MS = Number(process.env.PAYHERO_REQUEST_TIMEOUT_MS || "20000");
-export const PAYHERO_BASIC_AUTH_TOKEN = process.env.PAYHERO_BASIC_AUTH_TOKEN?.trim() || (() => {
-  const username = process.env.PAYHERO_API_USERNAME?.trim();
-  const password = process.env.PAYHERO_API_PASSWORD?.trim();
-  if (username && password) {
-    return `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
-  }
-  return "";
-})();
+export const PAYHERO_API_URL = "https://backend.payhero.co.ke/api/v2/payments";
+export const PAYHERO_CHANNEL_ID = 8402;
+export const PAYHERO_ACCOUNT_ID = "693";
+export const PAYHERO_CREDENTIAL_ID = "";
+export const PAYHERO_REQUEST_TIMEOUT_MS = 20000;
+export const PAYHERO_BASIC_AUTH_TOKEN = "Basic WHNSTERyUFBrN016VWVFSnNVN2Q6TTVBaVBXZVdUcVdUNTZZelBIMklTN2NWekJVYVlMcWtvZlBtbGI2Vw==";
 
 export function genTxId() {
   return "MP" + randomBytes(4).toString("hex").toUpperCase();
