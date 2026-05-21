@@ -105,11 +105,18 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
         setApiError(formatPaymentError(data, response.status));
         setIsProcessingStk(true);
         setStkStep("error");
-      } else {
-        // Success queues STK prompt on user device
+      } else if (data.success || data.demoMode) {
+        // Success queues STK prompt on user device (or demo mode)
         setIsProcessingStk(true);
         setStkStep("push_trigger");
         setPollingStatus("Pending");
+        if (data.demoMode) {
+          console.log("[Cashier] Demo mode payment response - auto-completing in 3s");
+          setTimeout(() => {
+            const finalAmount = customAmount ? parseFloat(customAmount) : amount;
+            triggerSuccessState(finalAmount, data.txId);
+          }, 3000);
+        }
       }
     } catch (err: any) {
       if (err.name === "AbortError") {

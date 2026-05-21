@@ -1,19 +1,22 @@
 import { readDb, writeDb } from "../_utils";
 
 export default async function handler(req: any, res: any) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+  if (req.method !== "POST" && req.method !== "GET") {
+    res.setHeader("Allow", "POST, GET");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
-    const callbackData = req.body;
-    console.log("Received Pay Hero payment confirmation callback payload (serverless):", JSON.stringify(callbackData, null, 2));
+    const callbackData = req.method === "GET" ? req.query : req.body;
+    console.log("[PayHero Callback] Received:", JSON.stringify(callbackData, null, 2));
 
-    if (callbackData && callbackData.response) {
-      const { Amount, ExternalReference, Status, CheckoutRequestID } = callbackData.response;
-      const isSuccess = Status === "SUCCESS" || Status === "Success" || callbackData.success === true;
-      const ref = ExternalReference || CheckoutRequestID;
+    // Handle both PayHero response format and direct query params
+    const responseData = callbackData.response || callbackData;
+    const { Amount, ExternalReference, Status, CheckoutRequestID } = responseData || {};
+    const isSuccess = Status === "SUCCESS" || Status === "Success" || Status === "success" || callbackData.success === true;
+    const ref = ExternalReference || CheckoutRequestID || responseData?.reference;
+    
+    console.log(`[PayHero Callback] Status: ${Status}, Ref: ${ref}, Success: ${isSuccess}`);
 
       if (ref) {
         const db = readDb();
@@ -43,7 +46,7 @@ export default async function handler(req: any, res: any) {
 
     res.status(200).send("Callback received and verified.");
   } catch (error) {
-    console.error("Pay Hero Callback verification error (serverless):", error);
-    res.status(500).send("Webhook process error");
+    console.error("[PayHero Callback] Error:", error);
+    res.status(200).send("Callback acknowledged");  // Always ack to prevent retries
   }
 }
