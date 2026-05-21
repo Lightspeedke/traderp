@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --color-[#0b0e11]: #0b0e11;
+  --color-dark-bg: #0b0e11;
+  --color-dark-surface: #131722;
+  --color-dark-border: #1e222d;
+  --color-dark-border-hover: #2a2e39;
+  --color-mint: #00b59c;
+  --color-mint-hover: #009c86;
+  --color-deriv-red: #dc2626;
+  --color-deriv-red-hover: #b91c1c;
+}

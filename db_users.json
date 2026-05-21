@@ -1,0 +1,154 @@
+{
+  "xybercoin.org.com@gmail.com": {
+    "id": "usr_b0aa1b7a74643593",
+    "email": "xybercoin.org.com@gmail.com",
+    "name": "speed",
+    "passwordHash": "bfcbe9a9e2a38cf7df24ce01761d4b10:eba75d43ef9b775cdffb5f0442605d9c99ce03c3e4aa7c0b6e87fba21ea27fb177a54e94a0ee48622c3be54eb8d612cf746b15dc6ab706bec70a1cc77d2befd3",
+    "emailVerified": false,
+    "verificationCode": "681551",
+    "liveBalance": 0,
+    "demoBalance": 1013880,
+    "createdAt": "2026-05-21T06:35:19.611Z",
+    "transactions": [
+      {
+        "id": "PRO4CXP7126",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Pending",
+        "timestamp": 1779348999341
+      },
+      {
+        "id": "PROH1RG9261",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Pending",
+        "timestamp": 1779346810863
+      },
+      {
+        "id": "PROC39R4969",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Pending",
+        "timestamp": 1779346757028
+      },
+      {
+        "id": "PRO76392622",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Pending",
+        "timestamp": 1779346485225
+      },
+      {
+        "id": "PROLWK54849",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Pending",
+        "timestamp": 1779346346844
+      },
+      {
+        "id": "PROFF7O1037",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Pending",
+        "timestamp": 1779346172628
+      }
+    ],
+    "contracts": [
+      {
+        "id": "CON_ZFH60V95",
+        "assetId": "vol100",
+        "assetName": "Volatility 100 Index",
+        "type": "Higher",
+        "mode": "Rise/Fall",
+        "entryPrice": 12450.45,
+        "stake": 5000,
+        "payoutRate": 0.92,
+        "duration": 5,
+        "startTime": 1779349692227,
+        "expiryTime": 1779349697227,
+        "settled": true,
+        "accountType": "Demo",
+        "winByPercentOverride": true,
+        "exitPrice": 12451.910533032677,
+        "result": "WON",
+        "payoutAmount": 9600
+      },
+      {
+        "id": "CON_ZFH60V95",
+        "assetId": "vol100",
+        "assetName": "Volatility 100 Index",
+        "type": "Higher",
+        "mode": "Rise/Fall",
+        "entryPrice": 12450.45,
+        "stake": 5000,
+        "payoutRate": 0.92,
+        "duration": 5,
+        "startTime": 1779349692227,
+        "expiryTime": 1779349697227,
+        "settled": true,
+        "accountType": "Demo",
+        "winByPercentOverride": true,
+        "exitPrice": 12451.429942577355,
+        "result": "WON",
+        "payoutAmount": 9600
+      },
+      {
+        "id": "CON_IK0JETJI",
+        "assetId": "vol100",
+        "assetName": "Volatility 100 Index",
+        "type": "Higher",
+        "mode": "Rise/Fall",
+        "entryPrice": 12450.45,
+        "stake": 1000,
+        "payoutRate": 0.92,
+        "duration": 5,
+        "startTime": 1779349680126,
+        "expiryTime": 1779349685126,
+        "settled": true,
+        "accountType": "Demo",
+        "winByPercentOverride": true,
+        "exitPrice": 12452.003878495412,
+        "result": "WON",
+        "payoutAmount": 1920
+      },
+      {
+        "id": "CON_IK0JETJI",
+        "assetId": "vol100",
+        "assetName": "Volatility 100 Index",
+        "type": "Higher",
+        "mode": "Rise/Fall",
+        "entryPrice": 12450.45,
+        "stake": 1000,
+        "payoutRate": 0.92,
+        "duration": 5,
+        "startTime": 1779349680126,
+        "expiryTime": 1779349685126,
+        "settled": true,
+        "accountType": "Demo",
+        "winByPercentOverride": true,
+        "exitPrice": 12452.197984301041,
+        "result": "WON",
+        "payoutAmount": 1920
+      }
+    ]
+  },
+  "mbogwaemmanuel@gmail.com": {
+    "id": "usr_53763a3100fa34a2",
+    "email": "mbogwaemmanuel@gmail.com",
+    "name": "kenya",
+    "passwordHash": "050194f843cf975938352964e922442f:06da46d3e16b22d3e0c4f77599fa34ee4970b430ea85cc1957988ddf2624ab0eeff1da0029849d49bd6209655872af417aa9a2883c122f24febc9277dad2640b",
+    "emailVerified": false,
+    "verificationCode": "122226",
+    "liveBalance": 100,
+    "demoBalance": 1000000,
+    "createdAt": "2026-05-21T08:12:21.345Z",
+    "transactions": [],
+    "contracts": []
+  }
+}
