@@ -26,7 +26,50 @@ export default async function handler(req: any, res: any) {
     }
 
     const callback_url = `${getPublicBaseUrl(req)}/api/payhero/callback`;
+    
+    // Detect localhost/development mode
+    const isDev = req.headers.host?.includes("localhost") || req.headers.host?.includes("127.0.0.1");
+    
+    if (isDev) {
+      console.log(`[PayHero STK] DEV MODE - Auto-completing payment for ${payheroPhone}, KSh ${amount}`);
+      
+      // Auto-complete payment in dev mode
+      if (userEmail) {
+        try {
+          const db = readDb();
+          const user = db[userEmail.toLowerCase().trim()];
+          if (user) {
+            const completedTx = {
+              id: txId,
+              type: "Deposit",
+              phoneNumber: formattedPhone,
+              amount: Math.round(amount),
+              status: "Completed",
+              timestamp: Date.now()
+            };
+            if (!user.transactions) user.transactions = [];
+            user.transactions.unshift(completedTx);
+            user.liveBalance += Math.round(amount);
+            writeDb(db);
+            console.log(`[PayHero STK] ✓ DEV: Auto-credited ${amount} KSh to ${userEmail}`);
+          }
+        } catch (dbErr) {
+          console.warn(`[PayHero STK] DEV DB error:`, dbErr);
+        }
+      }
 
+      return res.status(201).json({
+        success: true,
+        status: "COMPLETED",
+        reference: txId,
+        CheckoutRequestID: "DEV_" + Math.random().toString(36).slice(2, 10).toUpperCase(),
+        txId: txId,
+        devMode: true,
+        message: `✓ Development mode: Payment auto-completed for testing`
+      });
+    }
+
+    // Production: Use real PayHero API
     const requestBody: any = {
       amount: Math.round(amount),
       phone_number: payheroPhone,
@@ -39,7 +82,7 @@ export default async function handler(req: any, res: any) {
       ...(PAYHERO_CREDENTIAL_ID && { credential_id: PAYHERO_CREDENTIAL_ID })
     };
 
-    console.log(`[PayHero STK] Initiating M-Pesa STK for ${payheroPhone}, KSh ${amount}, TxId: ${txId}`);
+    console.log(`[PayHero STK] PROD - Calling PayHero API for ${payheroPhone}, KSh ${amount}`);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PAYHERO_REQUEST_TIMEOUT_MS);
