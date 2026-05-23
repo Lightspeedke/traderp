@@ -30,48 +30,6 @@ export default async function handler(req: any, res: any) {
     
     console.log(`[PayHero STK] Request details - Phone: ${payheroPhone}, Amount: ${amount}, Callback: ${callback_url}`);
     
-    // Detect localhost/development mode
-    const isDev = req.headers.host?.includes("localhost") || req.headers.host?.includes("127.0.0.1");
-    
-    if (isDev) {
-      console.log(`[PayHero STK] DEV MODE - Auto-completing payment for ${payheroPhone}, KSh ${amount}`);
-      
-      // Auto-complete payment in dev mode
-      if (userEmail) {
-        try {
-          const db = readDb();
-          const user = db[userEmail.toLowerCase().trim()];
-          if (user) {
-            const completedTx = {
-              id: txId,
-              type: "Deposit",
-              phoneNumber: formattedPhone,
-              amount: Math.round(amount),
-              status: "Completed",
-              timestamp: Date.now()
-            };
-            if (!user.transactions) user.transactions = [];
-            user.transactions.unshift(completedTx);
-            user.liveBalance += Math.round(amount);
-            writeDb(db);
-            console.log(`[PayHero STK] ✓ DEV: Auto-credited ${amount} KSh to ${userEmail}`);
-          }
-        } catch (dbErr) {
-          console.warn(`[PayHero STK] DEV DB error:`, dbErr);
-        }
-      }
-
-      return res.status(201).json({
-        success: true,
-        status: "COMPLETED",
-        reference: txId,
-        CheckoutRequestID: "DEV_" + Math.random().toString(36).slice(2, 10).toUpperCase(),
-        txId: txId,
-        devMode: true,
-        message: `✓ Development mode: Payment auto-completed for testing`
-      });
-    }
-
     // Production: Use real PayHero API
     // Only include optional fields if they have values
     const requestBody: any = {
