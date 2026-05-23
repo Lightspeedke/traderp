@@ -599,7 +599,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0e11] text-slate-100 flex flex-col font-sans select-none antialiased" id="traderpro254-root-layout">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-[#0b0e11] text-slate-100 flex flex-col font-sans select-none antialiased" id="traderpro254-root-layout">
       
       {/* Top Banner alert notification */}
       {recentNotification && (
@@ -1156,5 +1157,6 @@ export default function App() {
       </footer>
 
     </div>
+    </ErrorBoundary>
   );
 }
