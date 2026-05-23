@@ -111,6 +111,8 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
         setIsProcessingStk(true);
         setStkStep("push_trigger");
         setPollingStatus("Pending");
+        setActiveTxId(data.txId);
+        
         if (data.devMode === true) {
           console.log("[Cashier] Dev mode payment response - auto-completing in 3s");
           setTimeout(() => {
@@ -118,8 +120,10 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
             triggerSuccessState(finalAmount, data.txId);
           }, 3000);
         } else {
-          // Production mode - log to console that STK was sent
-          console.log("[v0] STK Push sent to phone: " + phoneNumber + ", waiting for user to complete payment...");
+          // Production mode - DO NOT trigger success yet! Only update UI to show "waiting"
+          // Payment will be authorized ONLY when PayHero callback is received confirming payment
+          console.log("[v0] STK Push sent to phone: " + phoneNumber + ", waiting for user to complete payment on their phone...");
+          console.log("[v0] Payment will be authorized ONLY after PayHero confirms via callback");
         }
       } else {
         // Response OK but success is false/missing
