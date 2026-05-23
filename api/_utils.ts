@@ -64,6 +64,7 @@ export function getPublicBaseUrl(req: any): string {
 export const PAYHERO_API_URL = "https://backend.payhero.co.ke/api/v2/payments";
 export const PAYHERO_CHANNEL_ID = 8402;
 export const PAYHERO_CREDENTIAL_ID = "";
+export const PAYHERO_ACCOUNT_ID = "";
 export const PAYHERO_REQUEST_TIMEOUT_MS = 20000;
 // Hardcoded Base64 encoded credentials for PayHero (zxpqZgTeQfztBsiuEAKk:Zx8gypaDFJLLXAZB4ig8kMCqK8wXcGTGWgmSBb5Y)
 export const PAYHERO_BASIC_AUTH_TOKEN = "Basic enhwcVpnVGVRZnp0QnNpdUVBS2s6Wng4Z3lwYURGSkxMWEFaQjRpZzhrTUNxSzh3WGNHVEdXZ21TQmI1WQ==";

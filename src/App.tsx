@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Component, ReactNode } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { Asset, TradeContract, AccountType, MpesaTx } from "./types";
 
@@ -7,6 +7,46 @@ import Cashier from "./components/Cashier";
 import EduSection from "./components/EduSection";
 import AuthPanel from "./components/AuthPanel";
 import { auth } from "./firebaseApp";
+
+// Error Boundary Component
+class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean; error: Error | null}> {
+  constructor(props: {children: ReactNode}) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error("App Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-screen h-screen bg-[#0a0e18] flex items-center justify-center p-4">
+          <div className="text-center max-w-md">
+            <h1 className="text-2xl font-bold text-white mb-4">Application Error</h1>
+            <p className="text-red-400 mb-4 break-words">{this.state.error?.message}</p>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.reload();
+              }}
+              className="px-6 py-2 bg-[#00b59c] text-white rounded font-semibold hover:bg-[#009c86]"
+            >
+              Reload App
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -57,6 +97,10 @@ interface UserProfile {
 }
 
 export default function App() {
+  // Loading and error states
+  const [isLoading, setIsLoading] = useState(true);
+  const [initError, setInitError] = useState<string | null>(null);
+  
   // Account & Wallet States
   const [accountType, setAccountType] = useState<AccountType>("Demo");
   const [demoBalance, setDemoBalance] = useState<number>(1000000); // KSh 1,000,000
@@ -99,42 +143,57 @@ export default function App() {
 
   // 1. Session state recovery on mount
   useEffect(() => {
+    setIsLoading(true);
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const token = await user.getIdToken();
-          const savedProfile = localStorage.getItem("traderPro_profile");
+      try {
+        if (user) {
+          try {
+            const token = await user.getIdToken();
+            const savedProfile = localStorage.getItem("traderPro_profile");
 
-          const profile = savedProfile
-            ? JSON.parse(savedProfile)
-            : {
-                id: user.uid,
-                email: user.email || "unknown@traderpro254.local",
-                name: user.displayName || (user.email ? user.email.split("@")[0] : "Trader"),
-                emailVerified: user.emailVerified,
-                liveBalance: 100,
-                demoBalance: 1000000,
-                mpesaNumber: "",
-                paymentInfo: "",
-              };
+            const profile = savedProfile
+              ? JSON.parse(savedProfile)
+              : {
+                  id: user.uid,
+                  email: user.email || "unknown@traderpro254.local",
+                  name: user.displayName || (user.email ? user.email.split("@")[0] : "Trader"),
+                  emailVerified: user.emailVerified,
+                  liveBalance: 100,
+                  demoBalance: 1000000,
+                  mpesaNumber: "",
+                  paymentInfo: "",
+                };
 
-          setAuthToken(token);
-          setUserProfile(profile);
-          setLiveBalance(profile.liveBalance);
-          setDemoBalance(profile.demoBalance);
+            setAuthToken(token);
+            setUserProfile(profile);
+            setLiveBalance(profile.liveBalance);
+            setDemoBalance(profile.demoBalance);
 
-          if (!savedProfile) {
-            localStorage.setItem("traderPro_profile", JSON.stringify(profile));
+            if (!savedProfile) {
+              localStorage.setItem("traderPro_profile", JSON.stringify(profile));
+            }
+          } catch (err) {
+            console.warn("Firebase auth initialization error:", err);
+            setInitError("Authentication service unavailable");
           }
-        } catch (err) {
-          console.warn("Firebase auth initialization error:", err);
+        } else {
+          handleLogout();
         }
-      } else {
-        handleLogout();
+      } catch (err) {
+        console.error("Auth state change error:", err);
+        setInitError("Failed to initialize authentication");
+      } finally {
+        setIsLoading(false);
       }
+    }, (error) => {
+      console.error("Firebase auth listener error:", error);
+      setInitError("Authentication service error");
+      setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -732,6 +791,34 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 w-full bg-[#0a0e18]" id="traderpro-viewport-container">
+        {/* Show loading overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-[#0a0e18] flex items-center justify-center z-50">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-2 border-[#00b59c] border-t-transparent mx-auto mb-4"></div>
+              <p className="text-slate-400">Initializing TraderPro254...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Show error overlay */}
+        {initError && (
+          <div className="absolute inset-0 bg-[#0a0e18] flex items-center justify-center z-50">
+            <div className="text-center max-w-md p-6">
+              <h2 className="text-xl font-bold text-red-400 mb-4">Initialization Error</h2>
+              <p className="text-slate-400 mb-6">{initError}</p>
+              <button
+                onClick={() => {
+                  setInitError(null);
+                  window.location.reload();
+                }}
+                className="px-6 py-2 bg-[#00b59c] text-white rounded font-semibold hover:bg-[#009c86]"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
         
         {/* Trading Desk Layout */}
         {currentView === "trade" && (
