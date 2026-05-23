@@ -1,0 +1,6 @@
+{
+  "name": "TraderPro254",
+  "description": "High-fidelity Kenyan binary options trading platform TraderPro254 with secure user authentication, real Pay Hero M-Pesa STK push deposits, professional technical indicator charting, dynamic betting modes, and instant KSh payouts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
