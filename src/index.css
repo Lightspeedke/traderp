@@ -1,13 +1,33 @@
 @import "tailwindcss";
 
 @theme {
-  --color-[#0b0e11]: #0b0e11;
-  --color-dark-bg: #0b0e11;
-  --color-dark-surface: #131722;
-  --color-dark-border: #1e222d;
-  --color-dark-border-hover: #2a2e39;
+  /* Deep professional dark background - inspired by Deriv */
+  --color-dark-bg: #0a0e18;
+  --color-dark-surface: #11152b;
+  --color-dark-border: #1e2338;
+  --color-dark-border-hover: #2a3050;
+  
+  /* Vibrant accent colors - Deriv-inspired */
   --color-mint: #00b59c;
   --color-mint-hover: #009c86;
-  --color-deriv-red: #dc2626;
-  --color-deriv-red-hover: #b91c1c;
+  --color-mint-active: #008674;
+  
+  /* Alert/Action colors */
+  --color-deriv-red: #e95e4b;
+  --color-deriv-red-hover: #d94033;
+  --color-green-success: #4db8a8;
+  
+  /* Supporting neutrals */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #b8bcc4;
+  --color-text-tertiary: #6c737f;
+}
+
+body {
+  @apply bg-dark-bg text-text-primary;
+}
+
+/* Smooth transitions for interactive elements */
+* {
+  @apply transition-colors transition-transform;
 }

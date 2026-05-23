@@ -150,6 +150,14 @@
     "createdAt": "2026-05-21T08:12:21.345Z",
     "transactions": [
       {
+        "id": "PROWYT81069",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Failed",
+        "timestamp": 1779517733996
+      },
+      {
         "id": "PRORV0K9775",
         "type": "Deposit",
         "phoneNumber": "254729161038",

@@ -567,110 +567,106 @@ export default function App() {
         </div>
       )}
 
-      {/* Modern Dashboard Header */}
-      <header className="bg-[#0b0e11]/95 border-b border-[#1e222d] sticky top-0 z-40 backdrop-blur-md px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto py-3.5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      {/* Professional Trading Platform Header - Deriv Style */}
+      <header className="bg-gradient-to-b from-[#11152b] to-[#0a0e18]/95 border-b border-[#1e2338] sticky top-0 z-40 backdrop-blur-md px-4 sm:px-6 shadow-lg shadow-black/20">
+        <div className="max-w-7xl mx-auto py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#00b59c]/20 to-[#00b59c]/10 border border-[#00b59c]/30">
+              <Activity className="w-5 h-5 text-[#00b59c]" />
+            </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-100">TraderPro254</h1>
-                <span className="text-[10px] font-mono font-bold text-[#f33350] bg-rose-500/10 px-1.5 py-0.5 rounded border border-[#f33350]/20">
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-black tracking-tighter text-white">TraderPro254</h1>
+                <span className="text-[9px] font-bold text-[#e95e4b] bg-[#e95e4b]/15 px-2 py-1 rounded-full border border-[#e95e4b]/30 font-mono">
                   LIVE
                 </span>
               </div>
-              <p className="text-[10px] text-slate-500 hidden sm:block">Kenya Professional Binary & Options Exchange</p>
+              <p className="text-[11px] text-[#6c737f] hidden sm:block font-medium">Binary & Options Trading</p>
             </div>
           </div>
 
-          {/* Account Balance switcher HUD */}
-          <div className="flex flex-wrap items-center gap-2 bg-[#0b0e11] border border-[#1e222d] p-1.5 rounded-xl">
-            {/* Demo Account Indicator */}
+          {/* Account Type Switcher */}
+          <div className="flex items-center gap-2 bg-[#11152b] border border-[#1e2338] p-1 rounded-lg">
+            {/* Demo Account */}
             <button
               onClick={() => setAccountType("Demo")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 rounded text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                 accountType === "Demo"
-                  ? "bg-[#131722] text-[#00b59c] shadow shadow-[#00b59c]/5 border border-[#1e222d]"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-[#00b59c]/20 text-[#00b59c] border border-[#00b59c]/40"
+                  : "text-[#b8bcc4] hover:text-white"
               }`}
             >
-              <div className="w-2 h-2 rounded-full bg-[#00b59c] animate-pulse"></div>
-              Demo Account
-              <span className="font-mono text-[9px] text-slate-500 px-1 bg-[#0b0e11]/80 rounded">KES</span>
+              <div className={`w-2 h-2 rounded-full ${accountType === "Demo" ? "bg-[#00b59c]" : "bg-[#6c737f]"}`}></div>
+              Demo
             </button>
 
-            {/* Live Account Selector */}
+            {/* Live Account */}
             <button
               onClick={() => {
                 if (!authToken) {
-                  showNotification("Security login required to trade Live KES account.", false);
+                  showNotification("Login required for Live trading", false);
                   setIsAuthOpen(true);
                   return;
                 }
                 setAccountType("Live");
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2 rounded text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                 accountType === "Live"
-                  ? "bg-[#00b59c] text-white shadow shadow-[#00b59c]/10"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? "bg-[#e95e4b]/20 text-[#e95e4b] border border-[#e95e4b]/40"
+                  : "text-[#b8bcc4] hover:text-white"
               }`}
             >
-              <div className="w-2 h-2 rounded-full bg-slate-900"></div>
-              Live Account
-              {liveBalance === 0 ? (
-                <span className="text-[9px] uppercase px-1 bg-neutral-900 text-white rounded font-mono">Top Up</span>
-              ) : (
-                <span className="font-mono text-[9px] px-1 bg-emerald-950 text-emerald-250 rounded">KES</span>
-              )}
+              <div className={`w-2 h-2 rounded-full ${accountType === "Live" ? "bg-[#e95e4b]" : "bg-[#6c737f]"}`}></div>
+              Live
             </button>
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Balance display widget - Enhanced Card */}
-            <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-slate-900/40 to-slate-800/30 border border-slate-700/30 backdrop-blur-sm">
+            {/* Balance Display - Professional Card */}
+            <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#11152b] border border-[#1e2338] backdrop-blur-sm hover:border-[#00b59c]/30 transition-colors">
               <div className="text-right">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold block mb-0.5">
+                <span className="text-[10px] text-[#6c737f] uppercase tracking-wider font-semibold block mb-1">
                   {accountType} Balance
                 </span>
-                <div className="text-lg font-mono font-black text-white">
-                  KSh {accountType === "Demo" ? demoBalance.toLocaleString(undefined, { minimumFractionDigits: 2 }) : liveBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                <div className="text-lg font-mono font-bold text-white">
+                  KSh {accountType === "Demo" ? demoBalance.toLocaleString() : liveBalance.toLocaleString()}
                 </div>
               </div>
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg transition-transform hover:scale-110 ${
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-base font-bold border ${
                 accountType === "Demo"
-                  ? 'bg-[#00b59c]/10 border border-[#00b59c]/30'
+                  ? 'bg-[#00b59c]/10 border-[#00b59c]/30 text-[#00b59c]'
                   : liveBalance > 0
-                  ? 'bg-emerald-600/20 border border-emerald-600/40'
-                  : 'bg-amber-600/10 border border-amber-600/30'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : 'bg-[#e95e4b]/10 border-[#e95e4b]/30 text-[#e95e4b]'
               }`}>
-                {accountType === "Demo" ? '🧪' : liveBalance > 0 ? '💰' : '📱'}
+                {accountType === "Demo" ? "T" : liveBalance > 0 ? "L" : "!"}
               </div>
             </div>
 
-            {/* JWT USER CREDENTIAL INDICATOR HUD */}
-            <div className="border-t border-[#1e222d] pt-4 md:border-t-0 md:border-l md:pl-4 flex items-center gap-2 w-full md:w-auto">
+            {/* User Authentication Status */}
+            <div className="border-t border-[#1e2338] pt-4 md:border-t-0 md:border-l md:pl-4 flex items-center gap-3 w-full md:w-auto">
               {authToken && userProfile ? (
-                <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   <div className="text-right hidden md:block">
-                    <span className="text-[10px] text-[#00b59c] font-black block leading-none">SECURED TRADER</span>
-                    <strong className="text-xs text-slate-200 font-bold">{userProfile.name}</strong>
+                    <span className="text-[9px] text-[#00b59c] font-bold block leading-none tracking-wider">VERIFIED</span>
+                    <strong className="text-xs text-white font-semibold">{userProfile.name}</strong>
                   </div>
                   <button
                     onClick={() => setCurrentView("cashier")}
-                    title="Open Cashier"
-                    className="px-3 py-2 rounded-xl bg-[#00b59c] text-slate-950 font-bold text-xs tracking-tight shadow-md flex items-center gap-2 transition-colors hover:bg-[#0fa786]"
+                    className="px-3 py-2 rounded-lg bg-[#00b59c] text-slate-950 font-bold text-xs shadow-md flex items-center gap-2 transition-all hover:bg-[#00a389] active:scale-95"
                   >
-                    <Smartphone className="w-4 h-4" />
-                    Cashier
+                    <DollarSign className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Cashier</span>
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={() => setIsAuthOpen(true)}
-                  className="px-4 py-2 bg-[#f33350] hover:bg-[#d01d37] text-white rounded-xl text-xs font-bold tracking-tight shadow-md flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-[#e95e4b] hover:bg-[#d94033] text-white rounded-lg text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
                 >
                   <User className="w-3.5 h-3.5" />
-                  Sign In
+                  <span className="hidden sm:inline">Sign In</span>
                 </button>
               )}
             </div>
@@ -681,49 +677,73 @@ export default function App() {
 
       {/* Email Verification check banner */}
 
-      {/* Inner Application Navigator Tabs bar */}
-      <div className="bg-[#0b0e11] border-b border-[#1e222d]/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 sm:gap-4 text-xs overflow-x-auto py-1 scrollbar-none">
+      {/* Navigation Tabs */}
+      <div className="bg-[#0a0e18] border-b border-[#1e2338]/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-0 text-xs overflow-x-auto py-0 scrollbar-none">
           <button
             onClick={() => setCurrentView("trade")}
-            className={`py-3 px-3 border-b-2 transition-colors font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`py-4 px-4 border-b-2 transition-colors font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               currentView === "trade"
-                ? "border-[#f33350] text-[#f33350]"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-[#00b59c] text-[#00b59c]"
+                : "border-transparent text-[#b8bcc4] hover:text-white"
             }`}
           >
-            <Activity className="w-4 h-4" />
-            Live Trading Desk
+            <TrendingUp className="w-4 h-4" />
+            Trading Desk
+          </button>
+          
+          <button
+            onClick={() => setCurrentView("cashier")}
+            className={`py-4 px-4 border-b-2 transition-colors font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              currentView === "cashier"
+                ? "border-[#00b59c] text-[#00b59c]"
+                : "border-transparent text-[#b8bcc4] hover:text-white"
+            }`}
+          >
+            <DollarSign className="w-4 h-4" />
+            Cashier
+          </button>
+          
+          <button
+            onClick={() => setCurrentView("ai")}
+            className={`py-4 px-4 border-b-2 transition-colors font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              currentView === "ai"
+                ? "border-[#00b59c] text-[#00b59c]"
+                : "border-transparent text-[#b8bcc4] hover:text-white"
+            }`}
+          >
+            <Zap className="w-4 h-4" />
+            Signals
           </button>
           
           <button
             onClick={() => setCurrentView("academy")}
-            className={`py-3 px-3 border-b-2 transition-colors font-bold flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`py-4 px-4 border-b-2 transition-colors font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               currentView === "academy"
-                ? "border-[#f33350] text-[#f33350]"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "border-[#00b59c] text-[#00b59c]"
+                : "border-transparent text-[#b8bcc4] hover:text-white"
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            Academy & Tutorials
+            Academy
           </button>
         </div>
       </div>
 
-      {/* Main Core View Area */}
-      <main className="flex-1 w-full bg-[#0b0e11]" id="traderpro-viewport-container">
+      {/* Main Content Area */}
+      <main className="flex-1 w-full bg-[#0a0e18]" id="traderpro-viewport-container">
         
-        {/* VIEW 1: TRADING DESK - Professional Layout */}
+        {/* Trading Desk Layout */}
         {currentView === "trade" && (
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-0 h-full min-h-[calc(100vh-180px)]">
             
-            {/* LEFT PANEL: Asset Selection (Sidebar) */}
-            <div className="xl:col-span-1 border-r border-[#1e222d] bg-[#131722]/50 overflow-y-auto max-h-[calc(100vh-180px)]">
+            {/* Left Sidebar - Asset Selection */}
+            <div className="xl:col-span-1 border-r border-[#1e2338] bg-gradient-to-b from-[#11152b]/50 to-[#0a0e18]/50 overflow-y-auto max-h-[calc(100vh-180px)]">
               <div className="p-4 space-y-4">
                 {/* Category Filter */}
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Asset Category</label>
-                  <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold text-[#6c737f] uppercase tracking-wider block mb-3">Asset Categories</label>
+                  <div className="flex flex-col gap-1.5">
                     {["Synthetics", "Forex", "Crypto"].map((cat) => (
                       <button
                         key={cat}
@@ -734,10 +754,10 @@ export default function App() {
                             setSelectedAsset(filtered[0]);
                           }
                         }}
-                        className={`px-3 py-2 text-xs rounded-lg font-bold transition-all cursor-pointer text-left ${
+                        className={`px-3 py-2.5 text-xs rounded-lg font-semibold transition-all cursor-pointer text-left ${
                           categoryFilter === cat
-                            ? "bg-[#00b59c]/10 text-[#00b59c] border border-[#00b59c]/30"
-                            : "bg-[#0b0e11] border border-[#1e222d] text-slate-400 hover:text-slate-200 hover:border-[#2a2e39]"
+                            ? "bg-[#00b59c]/20 text-[#00b59c] border border-[#00b59c]/40"
+                            : "bg-[#11152b] border border-[#1e2338] text-[#b8bcc4] hover:text-white hover:border-[#2a3050]"
                         }`}
                       >
                         {cat}
@@ -748,24 +768,24 @@ export default function App() {
 
                 {/* Asset List */}
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Available Assets</label>
-                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                  <label className="text-xs font-semibold text-[#6c737f] uppercase tracking-wider block mb-3">Available Assets</label>
+                  <div className="space-y-1 max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-[#1e2338] scrollbar-track-transparent">
                     {INITIAL_ASSETS
                       .filter((a) => a.category === categoryFilter)
                       .map((a) => (
                         <button
                           key={a.id}
                           onClick={() => setSelectedAsset(a)}
-                          className={`w-full text-left px-2.5 py-2 text-xs rounded-lg transition-all cursor-pointer group ${
+                          className={`w-full text-left px-3 py-2.5 text-xs rounded-lg transition-all cursor-pointer ${
                             selectedAsset.id === a.id
-                              ? "bg-[#00b59c]/15 border border-[#00b59c]/40 text-white"
-                              : "border border-[#1e222d] text-slate-300 hover:bg-[#131722] hover:border-[#2a2e39]"
+                              ? "bg-[#00b59c]/20 border border-[#00b59c]/40 text-white"
+                              : "border border-[#1e2338] text-[#b8bcc4] hover:bg-[#11152b] hover:border-[#2a3050] hover:text-white"
                           }`}
                         >
-                          <div className="font-semibold text-[10px] leading-tight">{a.name}</div>
-                          <div className="text-[9px] text-slate-500 mt-0.5 flex justify-between">
-                            <span>Payout: {a.payout}%</span>
-                            <span className={a.change24h > 0 ? "text-emerald-400" : "text-rose-400"}>{a.change24h > 0 ? "+" : ""}{a.change24h}%</span>
+                          <div className="font-semibold text-[10px] leading-tight text-white mb-1">{a.name}</div>
+                          <div className="text-[9px] text-[#6c737f] flex justify-between">
+                            <span>{a.payout}% Payout</span>
+                            <span className={a.change24h > 0 ? "text-emerald-400" : "text-[#e95e4b]"}>{a.change24h > 0 ? "+" : ""}{a.change24h}%</span>
                           </div>
                         </button>
                       ))}
@@ -774,11 +794,11 @@ export default function App() {
               </div>
             </div>
 
-            {/* CENTER PANEL: Chart and Contract History */}
-            <div className="xl:col-span-2 border-r border-[#1e222d] flex flex-col bg-[#0b0e11] overflow-hidden">
+            {/* Center - Chart & History */}
+            <div className="xl:col-span-2 border-r border-[#1e2338] flex flex-col bg-[#0a0e18] overflow-hidden">
               
-              {/* Chart Container */}
-              <div className="flex-1 p-4 border-b border-[#1e222d] overflow-hidden bg-[#131722]/50">
+              {/* Chart */}
+              <div className="flex-1 p-4 border-b border-[#1e2338] overflow-hidden bg-gradient-to-br from-[#11152b]/30 to-[#0a0e18]/30">
                 <TradingChart 
                   asset={selectedAsset} 
                   activeContracts={activeContracts} 
@@ -787,10 +807,10 @@ export default function App() {
               </div>
 
               {/* Contract History */}
-              <div className="flex-1 overflow-hidden border-t border-[#1e222d] flex flex-col">
-                <div className="px-4 py-2 border-b border-[#1e222d] bg-[#131722]/50">
-                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                    Contracts Portfolio
+              <div className="flex-1 overflow-hidden border-t border-[#1e2338] flex flex-col">
+                <div className="px-4 py-3 border-b border-[#1e2338] bg-[#11152b]/50">
+                  <h3 className="text-xs font-semibold text-[#b8bcc4] uppercase tracking-wider">
+                    Portfolio
                   </h3>
                 </div>
                 <div className="flex-1 overflow-y-auto">
@@ -1036,13 +1056,14 @@ export default function App() {
         </div>
       )}
 
-      {/* High-end Minimal Footer details */}
-      <footer className="bg-[#0b0e11] border-t border-[#1e222d]/60 py-6 text-center text-[10px] text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <span>© {new Date().getFullYear()} TraderPro254 Forex &amp; Options Exchange. All rights reserved.</span>
-          <div className="flex gap-4">
-            <span className="hover:text-slate-400 transition-colors">Risk Management</span>
-            <span className="hover:text-slate-400 transition-colors">Terms of Service</span>
+      {/* Footer */}
+      <footer className="bg-[#0a0e18] border-t border-[#1e2338]/40 py-5 text-center text-[11px] text-[#6c737f]">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <span className="font-medium">© {new Date().getFullYear()} TraderPro254 Trading Exchange. All rights reserved.</span>
+          <div className="flex gap-6">
+            <button className="hover:text-white transition-colors font-medium">Risk Management</button>
+            <button className="hover:text-white transition-colors font-medium">Terms & Conditions</button>
+            <button className="hover:text-white transition-colors font-medium">Privacy Policy</button>
           </div>
         </div>
       </footer>
