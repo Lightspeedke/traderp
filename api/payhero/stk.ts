@@ -73,6 +73,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // Production: Use real PayHero API
+    // Only include optional fields if they have values
     const requestBody: any = {
       amount: Math.round(amount),
       phone_number: payheroPhone,
@@ -80,10 +81,13 @@ export default async function handler(req: any, res: any) {
       provider: "m-pesa",
       external_reference: txId,
       customer_name: sanitizeString(customer_name || "TraderPro254 Client"),
-      callback_url: callback_url,
-      account_id: PAYHERO_ACCOUNT_ID,
-      ...(PAYHERO_CREDENTIAL_ID && { credential_id: PAYHERO_CREDENTIAL_ID })
+      callback_url: callback_url
     };
+    
+    // Only add credential_id if configured
+    if (PAYHERO_CREDENTIAL_ID) {
+      requestBody.credential_id = PAYHERO_CREDENTIAL_ID;
+    }
 
     console.log(`[PayHero STK] Sending request body:`, JSON.stringify(requestBody, null, 2));
 
