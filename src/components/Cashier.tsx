@@ -310,21 +310,7 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
             </div>
           </div>
 
-          {/* Debug Test Button */}
-          <button
-            onClick={async () => {
-              try {
-                const res = await fetch("/api/payhero/health");
-                const data = await res.json();
-                setApiError(JSON.stringify(data, null, 2));
-              } catch (e: any) {
-                setApiError("Health check error: " + e.message);
-              }
-            }}
-            className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs text-slate-200 font-semibold"
-          >
-            🔍 Test PayHero
-          </button>
+          {/* Removed Debug Test Button - using production API */}
         </div>
       </div>
 
