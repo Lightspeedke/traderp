@@ -1,4 +1,4 @@
-import { readDb, writeDb, formatKenyanPhone, sanitizeString, getPublicBaseUrl, PAYHERO_API_URL, PAYHERO_CHANNEL_ID, PAYHERO_ACCOUNT_ID, PAYHERO_CREDENTIAL_ID, PAYHERO_REQUEST_TIMEOUT_MS, PAYHERO_BASIC_AUTH_TOKEN, genTxId } from "../_utils";
+import { readDb, writeDb, formatKenyanPhone, sanitizeString, getPublicBaseUrl, PAYHERO_API_URL, PAYHERO_CHANNEL_ID, PAYHERO_CREDENTIAL_ID, PAYHERO_REQUEST_TIMEOUT_MS, PAYHERO_BASIC_AUTH_TOKEN, genTxId } from "../_utils";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -25,51 +25,13 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    const callback_url = `${getPublicBaseUrl(req)}/api/payhero/callback`;
+    const baseUrl = getPublicBaseUrl(req);
+    const callback_url = `${baseUrl}/api/payhero/callback`;
     
-    // Detect localhost/development mode
-    const isDev = req.headers.host?.includes("localhost") || req.headers.host?.includes("127.0.0.1");
+    console.log(`[PayHero STK] Request details - Phone: ${payheroPhone}, Amount: ${amount}, Callback: ${callback_url}`);
     
-    if (isDev) {
-      console.log(`[PayHero STK] DEV MODE - Auto-completing payment for ${payheroPhone}, KSh ${amount}`);
-      
-      // Auto-complete payment in dev mode
-      if (userEmail) {
-        try {
-          const db = readDb();
-          const user = db[userEmail.toLowerCase().trim()];
-          if (user) {
-            const completedTx = {
-              id: txId,
-              type: "Deposit",
-              phoneNumber: formattedPhone,
-              amount: Math.round(amount),
-              status: "Completed",
-              timestamp: Date.now()
-            };
-            if (!user.transactions) user.transactions = [];
-            user.transactions.unshift(completedTx);
-            user.liveBalance += Math.round(amount);
-            writeDb(db);
-            console.log(`[PayHero STK] ✓ DEV: Auto-credited ${amount} KSh to ${userEmail}`);
-          }
-        } catch (dbErr) {
-          console.warn(`[PayHero STK] DEV DB error:`, dbErr);
-        }
-      }
-
-      return res.status(201).json({
-        success: true,
-        status: "COMPLETED",
-        reference: txId,
-        CheckoutRequestID: "DEV_" + Math.random().toString(36).slice(2, 10).toUpperCase(),
-        txId: txId,
-        devMode: true,
-        message: `✓ Development mode: Payment auto-completed for testing`
-      });
-    }
-
     // Production: Use real PayHero API
+    // Only include optional fields if they have values
     const requestBody: any = {
       amount: Math.round(amount),
       phone_number: payheroPhone,
@@ -77,10 +39,15 @@ export default async function handler(req: any, res: any) {
       provider: "m-pesa",
       external_reference: txId,
       customer_name: sanitizeString(customer_name || "TraderPro254 Client"),
-      callback_url: callback_url,
-      ...(PAYHERO_ACCOUNT_ID && { account_id: PAYHERO_ACCOUNT_ID }),
-      ...(PAYHERO_CREDENTIAL_ID && { credential_id: PAYHERO_CREDENTIAL_ID })
+      callback_url: callback_url
     };
+    
+    // Only add credential_id if configured
+    if (PAYHERO_CREDENTIAL_ID) {
+      requestBody.credential_id = PAYHERO_CREDENTIAL_ID;
+    }
+
+    console.log(`[PayHero STK] Sending request body:`, JSON.stringify(requestBody, null, 2));
 
     console.log(`[PayHero STK] PROD - Calling PayHero API for ${payheroPhone}, KSh ${amount}`);
 
@@ -103,17 +70,27 @@ export default async function handler(req: any, res: any) {
     }
 
     const responseText = await apiResponse.text();
-    console.log(`[PayHero STK] Response status: ${apiResponse.status}`);
+    console.log(`[PayHero STK] Response status: ${apiResponse.status}, body: ${responseText}`);
 
     let result: any;
     try {
       result = JSON.parse(responseText);
     } catch (e) {
       console.error(`[PayHero STK] JSON parse error:`, e);
+      console.error(`[PayHero STK] Raw response: ${responseText}`);
       return res.status(500).json({ error: "Pay Hero returned non-JSON payload.", raw: responseText });
     }
 
-    if (apiResponse.ok && result.success) {
+    console.log(`[PayHero STK] Parsed result:`, JSON.stringify(result, null, 2));
+
+    // Check if PayHero accepted the request
+    // PayHero returns 200 OK with CheckoutRequestID when successful
+    const hasCheckoutRequestID = result.CheckoutRequestID || (result.response && result.response.CheckoutRequestID);
+    const isPayHeroSuccess = apiResponse.ok && (hasCheckoutRequestID || result.success === true || result.success === "true");
+
+    if (isPayHeroSuccess) {
+      console.log(`[PayHero STK] ✓ PayHero accepted the STK push request`);
+      
       // Register pending transaction
       if (userEmail) {
         try {
@@ -131,22 +108,26 @@ export default async function handler(req: any, res: any) {
             if (!user.transactions) user.transactions = [];
             user.transactions.unshift(pendingTx);
             writeDb(db);
-            console.log(`[PayHero STK] Registered pending transaction for ${userEmail}`);
+            console.log(`[PayHero STK] ✓ Registered pending transaction for ${userEmail}`);
           }
         } catch (dbErr) {
           console.warn(`[PayHero STK] DB write error:`, dbErr);
         }
       }
 
+      const checkoutID = hasCheckoutRequestID || ("CO_" + Math.random().toString(36).slice(2, 10).toUpperCase());
+      console.log(`[PayHero STK] ✓ STK Push sent successfully to ${payheroPhone}, CheckoutRequestID: ${checkoutID}`);
+      
       return res.status(201).json({
         success: true,
         status: "QUEUED",
         reference: result.reference || txId,
-        CheckoutRequestID: result.CheckoutRequestID || "CO_" + Math.random().toString(36).slice(2, 10).toUpperCase(),
+        CheckoutRequestID: checkoutID,
         txId: txId,
         message: `STK Push sent to ${payheroPhone}`
       });
     } else {
+      console.error(`[PayHero STK] ✗ PayHero request failed or rejected`);
       return res.status(apiResponse.status || 400).json({
         success: false,
         error: result.message || result.error || result.detail || "M-Pesa network busy. Please retry.",

@@ -105,18 +105,22 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
         setApiError(formatPaymentError(data, response.status));
         setIsProcessingStk(true);
         setStkStep("error");
-      } else if (data.success || data.demoMode) {
-        // Success queues STK prompt on user device (or demo mode)
+      } else if (data.success === true) {
+        // STK push sent to user's phone successfully
+        console.log("[v0] STK Push sent to phone: " + phoneNumber);
+        console.log("[v0] Payment will be authorized ONLY after user completes payment and PayHero confirms via callback");
         setIsProcessingStk(true);
         setStkStep("push_trigger");
         setPollingStatus("Pending");
-        if (data.demoMode) {
-          console.log("[Cashier] Demo mode payment response - auto-completing in 3s");
-          setTimeout(() => {
-            const finalAmount = customAmount ? parseFloat(customAmount) : amount;
-            triggerSuccessState(finalAmount, data.txId);
-          }, 3000);
-        }
+        setActiveTxId(data.txId);
+        
+        // DO NOT authorize yet! Wait for PayHero callback to confirm payment
+      } else {
+        // Response OK but success is false/missing
+        console.log("[v0] Unexpected response format:", data);
+        setApiError(data.error || "Payment request failed. Please check logs.");
+        setIsProcessingStk(true);
+        setStkStep("error");
       }
     } catch (err: any) {
       if (err.name === "AbortError") {

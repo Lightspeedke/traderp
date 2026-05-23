@@ -145,10 +145,58 @@
     "passwordHash": "050194f843cf975938352964e922442f:06da46d3e16b22d3e0c4f77599fa34ee4970b430ea85cc1957988ddf2624ab0eeff1da0029849d49bd6209655872af417aa9a2883c122f24febc9277dad2640b",
     "emailVerified": false,
     "verificationCode": "122226",
-    "liveBalance": 100,
+    "liveBalance": 5100,
     "demoBalance": 1000000,
     "createdAt": "2026-05-21T08:12:21.345Z",
     "transactions": [
+      {
+        "id": "PROWYT81069",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Failed",
+        "timestamp": 1779517733996
+      },
+      {
+        "id": "PRORV0K9775",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Completed",
+        "timestamp": 1779517611393
+      },
+      {
+        "id": "PRODIEW0932",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Completed",
+        "timestamp": 1779517462789
+      },
+      {
+        "id": "PRO16BY2195",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Completed",
+        "timestamp": 1779517163609
+      },
+      {
+        "id": "PRO6VAT4093",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Completed",
+        "timestamp": 1779517055719
+      },
+      {
+        "id": "PROKGU03141",
+        "type": "Deposit",
+        "phoneNumber": "254729161038",
+        "amount": 1000,
+        "status": "Completed",
+        "timestamp": 1779516704792
+      },
       {
         "id": "PROWJ602820",
         "type": "Deposit",
