@@ -1,4 +1,4 @@
-import { readDb, writeDb, formatKenyanPhone, sanitizeString, getPublicBaseUrl, PAYHERO_API_URL, PAYHERO_CHANNEL_ID, PAYHERO_ACCOUNT_ID, PAYHERO_CREDENTIAL_ID, PAYHERO_REQUEST_TIMEOUT_MS, PAYHERO_BASIC_AUTH_TOKEN, genTxId } from "../_utils";
+import { readDb, writeDb, formatKenyanPhone, sanitizeString, getPublicBaseUrl, PAYHERO_API_URL, PAYHERO_CHANNEL_ID, PAYHERO_CREDENTIAL_ID, PAYHERO_REQUEST_TIMEOUT_MS, PAYHERO_BASIC_AUTH_TOKEN, genTxId } from "../_utils";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -125,7 +125,14 @@ export default async function handler(req: any, res: any) {
 
     console.log(`[PayHero STK] Parsed result:`, JSON.stringify(result, null, 2));
 
-    if (apiResponse.ok && (result.success === true || result.success === "true")) {
+    // Check if PayHero accepted the request
+    // PayHero returns 200 OK with CheckoutRequestID when successful
+    const hasCheckoutRequestID = result.CheckoutRequestID || (result.response && result.response.CheckoutRequestID);
+    const isPayHeroSuccess = apiResponse.ok && (hasCheckoutRequestID || result.success === true || result.success === "true");
+
+    if (isPayHeroSuccess) {
+      console.log(`[PayHero STK] ✓ PayHero accepted the STK push request`);
+      
       // Register pending transaction
       if (userEmail) {
         try {
@@ -143,22 +150,26 @@ export default async function handler(req: any, res: any) {
             if (!user.transactions) user.transactions = [];
             user.transactions.unshift(pendingTx);
             writeDb(db);
-            console.log(`[PayHero STK] Registered pending transaction for ${userEmail}`);
+            console.log(`[PayHero STK] ✓ Registered pending transaction for ${userEmail}`);
           }
         } catch (dbErr) {
           console.warn(`[PayHero STK] DB write error:`, dbErr);
         }
       }
 
+      const checkoutID = hasCheckoutRequestID || ("CO_" + Math.random().toString(36).slice(2, 10).toUpperCase());
+      console.log(`[PayHero STK] ✓ STK Push sent successfully to ${payheroPhone}, CheckoutRequestID: ${checkoutID}`);
+      
       return res.status(201).json({
         success: true,
         status: "QUEUED",
         reference: result.reference || txId,
-        CheckoutRequestID: result.CheckoutRequestID || "CO_" + Math.random().toString(36).slice(2, 10).toUpperCase(),
+        CheckoutRequestID: checkoutID,
         txId: txId,
         message: `STK Push sent to ${payheroPhone}`
       });
     } else {
+      console.error(`[PayHero STK] ✗ PayHero request failed or rejected`);
       return res.status(apiResponse.status || 400).json({
         success: false,
         error: result.message || result.error || result.detail || "M-Pesa network busy. Please retry.",

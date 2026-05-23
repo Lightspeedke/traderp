@@ -105,18 +105,28 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
         setApiError(formatPaymentError(data, response.status));
         setIsProcessingStk(true);
         setStkStep("error");
-      } else if (data.success || data.demoMode) {
-        // Success queues STK prompt on user device (or demo mode)
+      } else if (data.success === true || data.devMode === true) {
+        // Success queues STK prompt on user device (or dev mode)
+        console.log("[v0] STK Push initiated successfully", { success: data.success, devMode: data.devMode, status: data.status });
         setIsProcessingStk(true);
         setStkStep("push_trigger");
         setPollingStatus("Pending");
-        if (data.demoMode) {
-          console.log("[Cashier] Demo mode payment response - auto-completing in 3s");
+        if (data.devMode === true) {
+          console.log("[Cashier] Dev mode payment response - auto-completing in 3s");
           setTimeout(() => {
             const finalAmount = customAmount ? parseFloat(customAmount) : amount;
             triggerSuccessState(finalAmount, data.txId);
           }, 3000);
+        } else {
+          // Production mode - log to console that STK was sent
+          console.log("[v0] STK Push sent to phone: " + phoneNumber + ", waiting for user to complete payment...");
         }
+      } else {
+        // Response OK but success is false/missing
+        console.log("[v0] Unexpected response format:", data);
+        setApiError(data.error || "Payment request failed. Please check logs.");
+        setIsProcessingStk(true);
+        setStkStep("error");
       }
     } catch (err: any) {
       if (err.name === "AbortError") {
