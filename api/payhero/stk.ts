@@ -25,7 +25,10 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    const callback_url = `${getPublicBaseUrl(req)}/api/payhero/callback`;
+    const baseUrl = getPublicBaseUrl(req);
+    const callback_url = `${baseUrl}/api/payhero/callback`;
+    
+    console.log(`[PayHero STK] Request details - Phone: ${payheroPhone}, Amount: ${amount}, Callback: ${callback_url}`);
     
     // Detect localhost/development mode
     const isDev = req.headers.host?.includes("localhost") || req.headers.host?.includes("127.0.0.1");
@@ -78,9 +81,11 @@ export default async function handler(req: any, res: any) {
       external_reference: txId,
       customer_name: sanitizeString(customer_name || "TraderPro254 Client"),
       callback_url: callback_url,
-      ...(PAYHERO_ACCOUNT_ID && { account_id: PAYHERO_ACCOUNT_ID }),
+      account_id: PAYHERO_ACCOUNT_ID,
       ...(PAYHERO_CREDENTIAL_ID && { credential_id: PAYHERO_CREDENTIAL_ID })
     };
+
+    console.log(`[PayHero STK] Sending request body:`, JSON.stringify(requestBody, null, 2));
 
     console.log(`[PayHero STK] PROD - Calling PayHero API for ${payheroPhone}, KSh ${amount}`);
 
@@ -103,17 +108,20 @@ export default async function handler(req: any, res: any) {
     }
 
     const responseText = await apiResponse.text();
-    console.log(`[PayHero STK] Response status: ${apiResponse.status}`);
+    console.log(`[PayHero STK] Response status: ${apiResponse.status}, body: ${responseText}`);
 
     let result: any;
     try {
       result = JSON.parse(responseText);
     } catch (e) {
       console.error(`[PayHero STK] JSON parse error:`, e);
+      console.error(`[PayHero STK] Raw response: ${responseText}`);
       return res.status(500).json({ error: "Pay Hero returned non-JSON payload.", raw: responseText });
     }
 
-    if (apiResponse.ok && result.success) {
+    console.log(`[PayHero STK] Parsed result:`, JSON.stringify(result, null, 2));
+
+    if (apiResponse.ok && (result.success === true || result.success === "true")) {
       // Register pending transaction
       if (userEmail) {
         try {

@@ -8,40 +8,61 @@ export default async function handler(req: any, res: any) {
 
   try {
     const callbackData = req.method === "GET" ? req.query : req.body;
-    console.log("[PayHero Callback] Received:", JSON.stringify(callbackData, null, 2));
+    console.log("[PayHero Callback] Received full data:", JSON.stringify(callbackData, null, 2));
 
     // Handle both PayHero response format and direct query params
     const responseData = callbackData.response || callbackData;
-    const { Amount, ExternalReference, Status, CheckoutRequestID } = responseData || {};
-    const isSuccess = Status === "SUCCESS" || Status === "Success" || Status === "success" || callbackData.success === true;
-    const ref = ExternalReference || CheckoutRequestID || responseData?.reference;
     
-    console.log(`[PayHero Callback] Status: ${Status}, Ref: ${ref}, Success: ${isSuccess}`);
+    // Extract values from PayHero callback format
+    const Amount = responseData?.Amount || callbackData?.Amount;
+    const ExternalReference = responseData?.ExternalReference || callbackData?.ExternalReference || callbackData?.external_reference;
+    const Status = responseData?.Status || callbackData?.Status || callbackData?.status;
+    const CheckoutRequestID = responseData?.CheckoutRequestID || callbackData?.CheckoutRequestID;
+    
+    // Determine success based on Status field
+    const isSuccess = Status === "SUCCESS" || Status === "Success" || Status === "success" || Status === "COMPLETED";
+    const ref = ExternalReference || CheckoutRequestID;
+    
+    console.log(`[PayHero Callback] Parsed - Amount: ${Amount}, Ref: ${ref}, Status: ${Status}, IsSuccess: ${isSuccess}`);
 
-      if (ref) {
-        const db = readDb();
-        let updated = false;
+    if (!ref) {
+      console.warn("[PayHero Callback] No reference ID found in callback data");
+      return res.status(200).send("Callback received - no reference ID");
+    }
 
-        for (const email of Object.keys(db)) {
-          const user = db[email];
-          const tx = user.transactions?.find((t: any) => t.id === ref);
-          if (tx) {
-            if (isSuccess && tx.status === "Pending") {
-              tx.status = "Completed";
-              user.liveBalance += parseFloat(Amount || tx.amount);
-              updated = true;
-              console.log(`Successfully credited ${Amount || tx.amount} KSh to ${email} live account via Pay Hero webhook!`);
-            } else if (!isSuccess && tx.status === "Pending") {
-              tx.status = "Failed";
-              updated = true;
-              console.log(`Failed transaction flag raised for ${email}`);
-            }
-            break;
-          }
+    const db = readDb();
+    let updated = false;
+
+    for (const email of Object.keys(db)) {
+      const user = db[email];
+      if (!user.transactions) continue;
+      
+      const tx = user.transactions.find((t: any) => t.id === ref);
+      if (tx) {
+        console.log(`[PayHero Callback] Found transaction ${ref} for user ${email}, current status: ${tx.status}`);
+        
+        if (isSuccess && tx.status === "Pending") {
+          const creditAmount = parseFloat(Amount || tx.amount);
+          tx.status = "Completed";
+          user.liveBalance += creditAmount;
+          updated = true;
+          console.log(`[PayHero Callback] ✓ Successfully credited ${creditAmount} KSh to ${email} live account!`);
+        } else if (!isSuccess && tx.status === "Pending") {
+          tx.status = "Failed";
+          updated = true;
+          console.log(`[PayHero Callback] ✗ Failed transaction marked for ${email}`);
+        } else {
+          console.log(`[PayHero Callback] Transaction already processed or status mismatch - skipping`);
         }
-
-        if (updated) writeDb(db);
+        break;
       }
+    }
+
+    if (updated) {
+      writeDb(db);
+      console.log("[PayHero Callback] Database updated successfully");
+    } else {
+      console.warn("[PayHero Callback] No database update performed");
     }
 
     res.status(200).send("Callback received and verified.");
