@@ -29,7 +29,7 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { phone, amount, customer_name, reference_id, userEmail } =
+  let { phone, amount, customer_name, reference_id, userEmail } =
     req.body as STKRequest;
 
   // Validate required fields
@@ -41,9 +41,19 @@ export default async function handler(
     return res.status(400).json({ error: "Minimum amount is 250" });
   }
 
+  // Format phone number: remove +, ensure it starts with 254 (Kenya country code)
+  phone = phone.replace(/^\+/, ""); // Remove + prefix if present
+  if (phone.startsWith("0")) {
+    phone = "254" + phone.substring(1); // 0712345678 -> 254712345678
+  } else if (!phone.startsWith("254")) {
+    phone = "254" + phone; // Add country code if missing
+  }
+
   try {
     const authToken = "Basic enhwcVpnVGVRZnp0QnNpdUVBS2s6Wng4Z3lwYURGSkxMWEFaQjRpZzhrTUNxSzh3WGNHVEdXZ21TQmI1WQ==";
     const channelId = "8402";
+
+    console.log("[STK] Initiating payment:", { phone, amount, channelId });
 
     const payheroResponse = (await fetch(
       "https://api.payhero.io/api/v2/payments/mobile-money/stk-push",
@@ -68,7 +78,10 @@ export default async function handler(
     const payheroData = await payheroResponse.json();
 
     if (!payheroResponse.ok) {
-      console.error("PayHero API error:", payheroData);
+      console.error("[STK] PayHero API error:", {
+        status: payheroResponse.status,
+        data: payheroData,
+      });
       return res.status(payheroResponse.status).json({
         error: "Payment service error",
         payhero: payheroData,
@@ -95,10 +108,12 @@ export default async function handler(
       data: payheroData.data,
     });
   } catch (err) {
-    console.error("STK push error:", err);
+    console.error("[STK] Payment error:", err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
     return res.status(500).json({
       error: "Failed to initiate payment",
-      message: err instanceof Error ? err.message : "Unknown error",
+      message: errorMessage,
+      details: err instanceof Error ? err.stack : undefined,
     });
   }
 }
