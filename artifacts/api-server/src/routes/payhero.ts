@@ -23,6 +23,7 @@ interface TxRecord {
   phone: string;
   createdAt: number;
   updatedAt: number;
+  callbackSecret: string;
   payheroRef?: string;
   checkoutId?: string;
 }
@@ -39,6 +40,10 @@ setInterval(() => {
 
 function genTxId() {
   return "MP" + randomBytes(4).toString("hex").toUpperCase();
+}
+
+function genCallbackSecret() {
+  return randomBytes(16).toString("hex");
 }
 
 function sanitizeString(str: string): string {
@@ -77,6 +82,12 @@ router.post("/payhero/stk", async (req, res) => {
 
     const txId = reference_id || genTxId();
 
+    // Reject if txId already exists (replay protection)
+    if (txStore.has(txId)) {
+      res.status(409).json({ error: "Duplicate transaction reference. Please use a unique reference_id." });
+      return;
+    }
+
     let payheroPhone = phone.replace(/\D/g, "");
     if (payheroPhone.startsWith("254")) {
       payheroPhone = "0" + payheroPhone.slice(3);
@@ -86,8 +97,11 @@ router.post("/payhero/stk", async (req, res) => {
       }
     }
 
+    // Generate a per-transaction secret embedded in the callback URL
+    const callbackSecret = genCallbackSecret();
+
     const baseUrl = getPublicBaseUrl(req);
-    const callback_url = `${baseUrl}/api/payhero/callback`;
+    const callback_url = `${baseUrl}/api/payhero/callback?txSecret=${txId}:${callbackSecret}`;
 
     req.log.info({ phone: payheroPhone, amount, callback_url }, "[PayHero STK] Request");
 
@@ -136,7 +150,7 @@ router.post("/payhero/stk", async (req, res) => {
     if (isPayHeroSuccess) {
       const checkoutID = hasCheckoutRequestID || ("CO_" + Math.random().toString(36).slice(2, 10).toUpperCase());
 
-      // Register transaction as Pending in the store
+      // Register transaction as Pending in the store — only after PayHero confirms the STK push
       const record: TxRecord = {
         txId,
         status: "Pending",
@@ -144,6 +158,7 @@ router.post("/payhero/stk", async (req, res) => {
         phone: payheroPhone,
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        callbackSecret,
         payheroRef: result.reference || undefined,
         checkoutId: checkoutID,
       };
@@ -173,7 +188,28 @@ router.post("/payhero/stk", async (req, res) => {
 });
 
 // ── POST /payhero/callback — M-Pesa payment confirmation from PayHero ───────
+// Authentication: requires ?txSecret=<txId>:<callbackSecret> set at STK push time.
+// The secret is embedded in the callback URL and only PayHero knows it.
 router.post("/payhero/callback", (req, res) => {
+  // Validate the per-transaction callback secret
+  const txSecretParam = req.query?.txSecret as string | undefined;
+  if (!txSecretParam || !txSecretParam.includes(":")) {
+    req.log.warn("[PayHero Callback] Rejected: missing or malformed txSecret");
+    res.status(403).json({ error: "Forbidden: invalid callback token" });
+    return;
+  }
+
+  const colonIdx = txSecretParam.indexOf(":");
+  const claimedTxId = txSecretParam.slice(0, colonIdx);
+  const claimedSecret = txSecretParam.slice(colonIdx + 1);
+
+  const existingRecord = txStore.get(claimedTxId);
+  if (!existingRecord || existingRecord.callbackSecret !== claimedSecret) {
+    req.log.warn({ claimedTxId }, "[PayHero Callback] Rejected: txSecret mismatch or unknown txId");
+    res.status(403).json({ error: "Forbidden: invalid callback token" });
+    return;
+  }
+
   const callbackData = req.body;
   req.log.info({ data: JSON.stringify(callbackData).slice(0, 500) }, "[PayHero Callback] Received");
 
@@ -182,7 +218,8 @@ router.post("/payhero/callback", (req, res) => {
   const ExternalReference =
     responseData?.ExternalReference ||
     callbackData?.ExternalReference ||
-    callbackData?.external_reference;
+    callbackData?.external_reference ||
+    claimedTxId;
 
   const isSuccess =
     Status === "SUCCESS" ||
@@ -200,24 +237,15 @@ router.post("/payhero/callback", (req, res) => {
 
   req.log.info({ ref: ExternalReference, status: Status, isSuccess, isFailed }, "[PayHero Callback] Parsed");
 
-  // Update transaction status in the store
-  if (ExternalReference) {
-    const existing = txStore.get(ExternalReference);
-    if (existing) {
-      existing.status = isSuccess ? "Completed" : isFailed ? "Failed" : "Pending";
-      existing.updatedAt = Date.now();
-      req.log.info({ txId: ExternalReference, newStatus: existing.status }, "[PayHero Callback] Transaction updated");
-    } else {
-      // Create a record if it arrived out of order (e.g. txId unknown at callback time)
-      txStore.set(ExternalReference, {
-        txId: ExternalReference,
-        status: isSuccess ? "Completed" : isFailed ? "Failed" : "Pending",
-        amount: 0,
-        phone: "",
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-    }
+  // Update the transaction we already verified belongs to a legitimate STK push
+  const record = txStore.get(claimedTxId)!;
+  // Only allow Pending → Completed/Failed (no re-crediting of already-settled txns)
+  if (record.status === "Pending") {
+    record.status = isSuccess ? "Completed" : isFailed ? "Failed" : "Pending";
+    record.updatedAt = Date.now();
+    req.log.info({ txId: claimedTxId, newStatus: record.status }, "[PayHero Callback] Transaction updated");
+  } else {
+    req.log.warn({ txId: claimedTxId, currentStatus: record.status }, "[PayHero Callback] Ignoring callback for already-settled transaction");
   }
 
   res.status(200).send("Callback received and verified.");
