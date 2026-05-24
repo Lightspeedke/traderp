@@ -1,4 +1,5 @@
 {
   "buildCommand": "pnpm run build",
-  "outputDirectory": "artifacts/api-server/dist"
+  "outputDirectory": "artifacts/traderpro254/dist/public",
+  "framework": "vite"
 }

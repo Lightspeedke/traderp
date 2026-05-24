@@ -3,7 +3,6 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
-import path from "path";
 
 const app: Express = express();
 
@@ -30,16 +29,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve API routes
 app.use("/api", router);
 
-// Serve frontend static files
-const frontendPath = path.join(__dirname, "public");
-app.use(express.static(frontendPath));
-
-// SPA fallback: serve index.html for all other routes (client-side routing)
-app.get("*", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
-});
+export default app;
 
 export default app;
