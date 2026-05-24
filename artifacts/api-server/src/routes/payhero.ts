@@ -4,9 +4,38 @@ import { randomBytes } from "crypto";
 const router: IRouter = Router();
 
 const PAYHERO_API_URL = "https://backend.payhero.co.ke/api/v2/payments";
-const PAYHERO_CHANNEL_ID = 8402;
-const PAYHERO_BASIC_AUTH_TOKEN = "Basic enhwcVpnVGVRZnp0QnNpdUVBS2s6Wng4Z3lwYURGSkxMWEFaQjRpZzhrTUNxSzh3WGNHVEdXZ21TQmI1WQ==";
+const PAYHERO_CHANNEL_ID = parseInt(process.env.PAYHERO_CHANNEL_ID || "8402", 10);
+const PAYHERO_BASIC_AUTH_TOKEN = process.env.PAYHERO_BASIC_AUTH_TOKEN || "";
 const PAYHERO_REQUEST_TIMEOUT_MS = 20000;
+
+if (!PAYHERO_BASIC_AUTH_TOKEN) {
+  console.warn("[PayHero] WARNING: PAYHERO_BASIC_AUTH_TOKEN env var is not set. M-Pesa payments will fail.");
+}
+
+// ── In-memory transaction state store ──────────────────────────────────────
+// Maps txId → transaction record. Populated by /stk and updated by /callback.
+type TxStatus = "Pending" | "Completed" | "Failed";
+
+interface TxRecord {
+  txId: string;
+  status: TxStatus;
+  amount: number;
+  phone: string;
+  createdAt: number;
+  updatedAt: number;
+  payheroRef?: string;
+  checkoutId?: string;
+}
+
+const txStore = new Map<string, TxRecord>();
+
+// Prune records older than 24 hours every 30 minutes
+setInterval(() => {
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  for (const [key, rec] of txStore.entries()) {
+    if (rec.createdAt < cutoff) txStore.delete(key);
+  }
+}, 30 * 60 * 1000);
 
 function genTxId() {
   return "MP" + randomBytes(4).toString("hex").toUpperCase();
@@ -23,18 +52,6 @@ function sanitizeString(str: string): string {
     .replace(/\//g, "&#x2F;");
 }
 
-function formatKenyanPhone(phone: string): string {
-  let clean = phone.replace(/\D/g, "");
-  if (clean.startsWith("0")) {
-    clean = "254" + clean.slice(1);
-  } else if (clean.startsWith("7") || clean.startsWith("1")) {
-    clean = "254" + clean;
-  } else if (!clean.startsWith("254") && clean.length === 9) {
-    clean = "254" + clean;
-  }
-  return clean;
-}
-
 function getPublicBaseUrl(req: any): string {
   const forwardedHost = req.headers["x-forwarded-host"];
   const host = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost || req.headers.host;
@@ -43,12 +60,18 @@ function getPublicBaseUrl(req: any): string {
   return `${protocol}://${host}`;
 }
 
+// ── POST /payhero/stk — initiate M-Pesa STK push ───────────────────────────
 router.post("/payhero/stk", async (req, res) => {
   try {
+    if (!PAYHERO_BASIC_AUTH_TOKEN) {
+      res.status(503).json({ error: "Payment gateway not configured. Please contact support." });
+      return;
+    }
+
     const { phone, amount, reference_id, customer_name } = req.body;
 
     if (!phone || !amount) {
-      res.status(400).json({ error: "Contact Safaricom phone number and billing amount required!" });
+      res.status(400).json({ error: "Phone number and amount are required." });
       return;
     }
 
@@ -112,6 +135,20 @@ router.post("/payhero/stk", async (req, res) => {
 
     if (isPayHeroSuccess) {
       const checkoutID = hasCheckoutRequestID || ("CO_" + Math.random().toString(36).slice(2, 10).toUpperCase());
+
+      // Register transaction as Pending in the store
+      const record: TxRecord = {
+        txId,
+        status: "Pending",
+        amount: Math.round(amount),
+        phone: payheroPhone,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        payheroRef: result.reference || undefined,
+        checkoutId: checkoutID,
+      };
+      txStore.set(txId, record);
+
       res.status(201).json({
         success: true,
         status: "QUEUED",
@@ -135,36 +172,97 @@ router.post("/payhero/stk", async (req, res) => {
   }
 });
 
+// ── POST /payhero/callback — M-Pesa payment confirmation from PayHero ───────
 router.post("/payhero/callback", (req, res) => {
   const callbackData = req.body;
   req.log.info({ data: JSON.stringify(callbackData).slice(0, 500) }, "[PayHero Callback] Received");
 
   const responseData = callbackData.response || callbackData;
   const Status = responseData?.Status || callbackData?.Status || callbackData?.status;
-  const ExternalReference = responseData?.ExternalReference || callbackData?.ExternalReference || callbackData?.external_reference;
-  const isSuccess = Status === "SUCCESS" || Status === "Success" || Status === "success" || Status === "COMPLETED";
+  const ExternalReference =
+    responseData?.ExternalReference ||
+    callbackData?.ExternalReference ||
+    callbackData?.external_reference;
 
-  req.log.info({ ref: ExternalReference, status: Status, isSuccess }, "[PayHero Callback] Parsed");
+  const isSuccess =
+    Status === "SUCCESS" ||
+    Status === "Success" ||
+    Status === "success" ||
+    Status === "COMPLETED" ||
+    Status === "Completed";
+
+  const isFailed =
+    Status === "FAILED" ||
+    Status === "Failed" ||
+    Status === "failed" ||
+    Status === "CANCELLED" ||
+    Status === "Cancelled";
+
+  req.log.info({ ref: ExternalReference, status: Status, isSuccess, isFailed }, "[PayHero Callback] Parsed");
+
+  // Update transaction status in the store
+  if (ExternalReference) {
+    const existing = txStore.get(ExternalReference);
+    if (existing) {
+      existing.status = isSuccess ? "Completed" : isFailed ? "Failed" : "Pending";
+      existing.updatedAt = Date.now();
+      req.log.info({ txId: ExternalReference, newStatus: existing.status }, "[PayHero Callback] Transaction updated");
+    } else {
+      // Create a record if it arrived out of order (e.g. txId unknown at callback time)
+      txStore.set(ExternalReference, {
+        txId: ExternalReference,
+        status: isSuccess ? "Completed" : isFailed ? "Failed" : "Pending",
+        amount: 0,
+        phone: "",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
+  }
 
   res.status(200).send("Callback received and verified.");
 });
 
+// ── GET /payhero/callback — handle GET pings from PayHero ───────────────────
 router.get("/payhero/callback", (req, res) => {
   req.log.info({ query: req.query }, "[PayHero Callback GET] Received");
   res.status(200).send("Callback acknowledged.");
 });
 
+// ── GET /payhero/status — poll transaction status ───────────────────────────
 router.get("/payhero/status", (req, res) => {
-  const txId = req.query?.txId || req.query?.id || req.query?.reference || null;
+  const txId = (req.query?.txId || req.query?.id || req.query?.reference) as string | undefined;
 
   if (!txId) {
     res.status(400).json({ error: "txId query parameter required" });
     return;
   }
 
-  res.status(404).json({ error: "Transaction not found in system" });
+  const record = txStore.get(txId);
+  if (!record) {
+    // Transaction not yet received — could still be in flight (< 30s)
+    res.status(202).json({
+      found: false,
+      status: "Pending",
+      message: "Transaction is being processed. Check again in a moment.",
+    });
+    return;
+  }
+
+  res.status(200).json({
+    found: true,
+    tx: {
+      txId: record.txId,
+      status: record.status,
+      amount: record.amount,
+      phone: record.phone,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    },
+  });
 });
 
+// ── GET /payhero/health ──────────────────────────────────────────────────────
 router.get("/payhero/health", async (_req, res) => {
   res.json({
     status: "ok",
@@ -174,6 +272,7 @@ router.get("/payhero/health", async (_req, res) => {
       hasAuthToken: !!PAYHERO_BASIC_AUTH_TOKEN,
     },
     environment: { nodeEnv: process.env.NODE_ENV },
+    pendingTransactions: txStore.size,
   });
 });
 
