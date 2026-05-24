@@ -1,24 +1,25 @@
-import { formatKenyanPhone, sanitizeString, getPublicBaseUrl, PAYHERO_API_URL, PAYHERO_CHANNEL_ID, PAYHERO_CREDENTIAL_ID, PAYHERO_REQUEST_TIMEOUT_MS, PAYHERO_BASIC_AUTH_TOKEN, genTxId } from "../_utils";
-
 // Vercel Serverless Function for PayHero STK Push Payment
 export default async function handler(req: any, res: any) {
-  console.log("[STK] Request method:", req.method);
-  
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
   try {
-    // Parse request body if it's a string
-    let body = req.body;
-    if (typeof body === 'string') {
-      body = JSON.parse(body);
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "POST");
+      return res.status(405).json({ error: "Method not allowed" });
     }
-    
-    console.log("[STK] Parsed body:", body);
-    
-    const { phone, amount, customer_name, reference_id, userEmail } = body || {};
+
+    // Test response to verify handler is working
+    return res.status(200).json({
+      success: true,
+      message: "STK handler is working",
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error("[STK] Error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || "Internal server error"
+    });
+  }
+}
 
     if (!phone || !amount) {
       return res.status(400).json({ error: "Contact Safaricom phone number and billing amount required!" });
