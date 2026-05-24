@@ -1,8 +1,4 @@
 {
   "buildCommand": "pnpm run build",
-  "outputDirectory": "artifacts/api-server/dist",
-  "framework": "express",
-  "env": {
-    "PORT": "8080"
-  }
+  "outputDirectory": "artifacts/api-server/dist"
 }

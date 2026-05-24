@@ -34,7 +34,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api", router);
 
 // Serve frontend static files
-const frontendPath = path.join(__dirname, "../../traderpro254/dist/public");
+const frontendPath = path.join(__dirname, "public");
 app.use(express.static(frontendPath));
 
 // SPA fallback: serve index.html for all other routes (client-side routing)
