@@ -1,4 +1,4 @@
-import { readDb, writeDb } from "../_utils";
+import { sanitizeString } from "../_utils";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST" && req.method !== "GET") {
@@ -30,49 +30,17 @@ export default async function handler(req: any, res: any) {
       return res.status(200).send("Callback received - no reference ID");
     }
 
-    const db = readDb();
-    let updated = false;
-
-    if (Object.keys(db).length === 0) {
-      console.log("[PayHero Callback] Database unavailable (expected on Vercel). Callback acknowledged but not processed.");
-      return res.status(200).send("Callback received - database unavailable");
-    }
-
-    for (const email of Object.keys(db)) {
-      const user = db[email];
-      if (!user.transactions) continue;
-      
-      const tx = user.transactions.find((t: any) => t.id === ref);
-      if (tx) {
-        console.log(`[PayHero Callback] Found transaction ${ref} for user ${email}, current status: ${tx.status}`);
-        
-        if (isSuccess && tx.status === "Pending") {
-          const creditAmount = parseFloat(Amount || tx.amount);
-          tx.status = "Completed";
-          user.liveBalance += creditAmount;
-          updated = true;
-          console.log(`[PayHero Callback] ✓ Successfully credited ${creditAmount} KSh to ${email} live account!`);
-        } else if (!isSuccess && tx.status === "Pending") {
-          tx.status = "Failed";
-          updated = true;
-          console.log(`[PayHero Callback] ✗ Failed transaction marked for ${email}`);
-        } else {
-          console.log(`[PayHero Callback] Transaction already processed or status mismatch - skipping`);
-        }
-        break;
-      }
-    }
-
-    if (updated) {
-      writeDb(db);
-      console.log("[PayHero Callback] Database updated successfully");
+    // Log the payment result - no database storage needed
+    if (isSuccess) {
+      console.log(`[PayHero Callback] ✓ Payment confirmed for transaction ${ref}, Amount: ${Amount} KSh`);
     } else {
-      console.warn("[PayHero Callback] No database update performed");
+      console.log(`[PayHero Callback] ✗ Payment failed for transaction ${ref}`);
     }
 
+    // Always return 200 OK to acknowledge receipt
     res.status(200).send("Callback received and verified.");
   } catch (error) {
     console.error("[PayHero Callback] Error:", error);
-    res.status(200).send("Callback acknowledged");  // Always ack to prevent retries
+    res.status(200).send("Callback acknowledged");  // Always ack to prevent PayHero retries
   }
 }

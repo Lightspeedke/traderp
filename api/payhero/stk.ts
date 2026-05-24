@@ -1,4 +1,4 @@
-import { readDb, writeDb, formatKenyanPhone, sanitizeString, getPublicBaseUrl, PAYHERO_API_URL, PAYHERO_CHANNEL_ID, PAYHERO_CREDENTIAL_ID, PAYHERO_REQUEST_TIMEOUT_MS, PAYHERO_BASIC_AUTH_TOKEN, genTxId } from "../_utils";
+import { formatKenyanPhone, sanitizeString, getPublicBaseUrl, PAYHERO_API_URL, PAYHERO_CHANNEL_ID, PAYHERO_CREDENTIAL_ID, PAYHERO_REQUEST_TIMEOUT_MS, PAYHERO_BASIC_AUTH_TOKEN, genTxId } from "../_utils";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -91,34 +91,7 @@ export default async function handler(req: any, res: any) {
     if (isPayHeroSuccess) {
       console.log(`[PayHero STK] ✓ PayHero accepted the STK push request`);
       
-      // Register pending transaction (non-blocking - don't fail if DB write fails)
-      if (userEmail) {
-        try {
-          const db = readDb();
-          if (Object.keys(db).length > 0) {  // Only attempt if DB is available
-            const user = db[userEmail.toLowerCase().trim()];
-            if (user) {
-              const pendingTx = {
-                id: txId,
-                type: "Deposit",
-                phoneNumber: formattedPhone,
-                amount: Math.round(amount),
-                status: "Pending",
-                timestamp: Date.now()
-              };
-              if (!user.transactions) user.transactions = [];
-              user.transactions.unshift(pendingTx);
-              writeDb(db);
-              console.log(`[PayHero STK] ✓ Registered pending transaction for ${userEmail}`);
-            }
-          } else {
-            console.log(`[PayHero STK] Database unavailable (expected on Vercel), payment still sent to ${payheroPhone}`);
-          }
-        } catch (dbErr) {
-          console.warn(`[PayHero STK] DB error (non-blocking):`, dbErr);
-        }
-      }
-
+      // Payment is confirmed by PayHero - no need to register locally
       const checkoutID = hasCheckoutRequestID || ("CO_" + Math.random().toString(36).slice(2, 10).toUpperCase());
       console.log(`[PayHero STK] ✓ STK Push sent successfully to ${payheroPhone}, CheckoutRequestID: ${checkoutID}`);
       
