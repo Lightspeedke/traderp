@@ -103,7 +103,7 @@ router.post("/payhero/stk", async (req, res) => {
     const baseUrl = getPublicBaseUrl(req);
     const callback_url = `${baseUrl}/api/payhero/callback?txSecret=${txId}:${callbackSecret}`;
 
-    req.log.info({ phone: payheroPhone, amount, callback_url }, "[PayHero STK] Request");
+    req.log.info({ phone: payheroPhone, amount }, "[PayHero STK] Request");
 
     const requestBody: Record<string, unknown> = {
       amount: Math.round(amount),
