@@ -1,8 +1,8 @@
 {
   "buildCommand": "pnpm run build",
-  "outputDirectory": "artifacts/traderpro254/dist/public",
-  "framework": "vite",
+  "outputDirectory": "artifacts/api-server/dist",
+  "framework": "express",
   "env": {
-    "BASE_PATH": "/"
+    "PORT": "8080"
   }
 }
