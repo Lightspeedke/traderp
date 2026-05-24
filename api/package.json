@@ -1,0 +1,6 @@
+{
+  "name": "traderp-serverless-api",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Vercel serverless functions for TraderPro254"
+}
