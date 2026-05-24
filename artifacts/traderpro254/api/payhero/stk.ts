@@ -54,8 +54,7 @@ export default async function handler(
       });
     }
 
-    // Call PayHero API
-    const payheroResponse = await fetch(
+    const payheroResponse = (await fetch(
       "https://api.payhero.io/api/v2/payments/mobile-money/stk-push",
       {
         method: "POST",
@@ -73,7 +72,7 @@ export default async function handler(
           callback_url: `${process.env.VERCEL_URL || "https://tradepro254.com"}/api/payhero/callback`,
         }),
       }
-    );
+    )) as any;
 
     const payheroData = await payheroResponse.json();
 

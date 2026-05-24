@@ -28,7 +28,7 @@ export default async function handler(
 
   try {
     // For demo: simulate payment completion after a few seconds
-    const tx = transactionStore.get(txId);
+    const tx = transactionStore.get(txId) as any;
 
     if (!tx) {
       return res.status(404).json({
