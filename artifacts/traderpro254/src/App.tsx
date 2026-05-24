@@ -627,168 +627,181 @@ export default function App() {
         </div>
       )}
 
-      {/* Professional Trading Platform Header - Deriv Style */}
-      <header className="bg-gradient-to-b from-[#11152b] to-[#0a0e18]/95 border-b border-[#1e2338] sticky top-0 z-40 backdrop-blur-md px-4 sm:px-6 shadow-lg shadow-black/20">
-        <div className="max-w-7xl mx-auto py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#00b59c]/20 to-[#00b59c]/10 border border-[#00b59c]/30">
-              <Activity className="w-5 h-5 text-[#00b59c]" />
+      {/* ── TOP HEADER ── */}
+      <header className="bg-[#0d1117] border-b border-[#1e2338] sticky top-0 z-40 shadow-xl shadow-black/30">
+        {/* Main header row */}
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+
+          {/* Logo */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#00b59c] to-[#007a6a] flex items-center justify-center shadow-lg shadow-[#00b59c]/20">
+              <Activity className="w-4 h-4 text-white" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-black tracking-tighter text-white">TraderPro254</h1>
-                <span className="text-[9px] font-bold text-[#e95e4b] bg-[#e95e4b]/15 px-2 py-1 rounded-full border border-[#e95e4b]/30 font-mono">
-                  LIVE
-                </span>
+            <div className="hidden sm:block">
+              <span className="text-sm font-black tracking-tight text-white">TraderPro<span className="text-[#00b59c]">254</span></span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-[9px] text-[#6c737f] font-medium uppercase tracking-widest">Markets Open</span>
               </div>
-              <p className="text-[11px] text-[#6c737f] hidden sm:block font-medium">Binary & Options Trading</p>
             </div>
           </div>
 
-          {/* Account Type Switcher */}
-          <div className="flex items-center gap-2 bg-[#11152b] border border-[#1e2338] p-1 rounded-lg">
-            {/* Demo Account */}
-            <button
-              onClick={() => setAccountType("Demo")}
-              className={`px-3 py-2 rounded text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                accountType === "Demo"
-                  ? "bg-[#00b59c]/20 text-[#00b59c] border border-[#00b59c]/40"
-                  : "text-[#b8bcc4] hover:text-white"
-              }`}
-            >
-              <div className={`w-2 h-2 rounded-full ${accountType === "Demo" ? "bg-[#00b59c]" : "bg-[#6c737f]"}`}></div>
-              Demo
-            </button>
+          {/* Nav tabs — center */}
+          <nav className="hidden md:flex items-center gap-0.5">
+            {[
+              { id: "trade", label: "Trading Desk", icon: <TrendingUp className="w-3.5 h-3.5" /> },
+              { id: "cashier", label: "Cashier", icon: <DollarSign className="w-3.5 h-3.5" /> },
+              { id: "ai", label: "Signals", icon: <Zap className="w-3.5 h-3.5" /> },
+              { id: "academy", label: "Academy", icon: <BookOpen className="w-3.5 h-3.5" /> },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setCurrentView(tab.id as any)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  currentView === tab.id
+                    ? "bg-[#00b59c]/15 text-[#00b59c] border border-[#00b59c]/25"
+                    : "text-[#6c737f] hover:text-[#b8bcc4] hover:bg-white/5"
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </nav>
 
-            {/* Live Account */}
-            <button
-              onClick={() => {
-                if (!authToken) {
-                  showNotification("Login required for Live trading", false);
-                  setIsAuthOpen(true);
-                  return;
-                }
-                setAccountType("Live");
-              }}
-              className={`px-3 py-2 rounded text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                accountType === "Live"
-                  ? "bg-[#e95e4b]/20 text-[#e95e4b] border border-[#e95e4b]/40"
-                  : "text-[#b8bcc4] hover:text-white"
-              }`}
-            >
-              <div className={`w-2 h-2 rounded-full ${accountType === "Live" ? "bg-[#e95e4b]" : "bg-[#6c737f]"}`}></div>
-              Live
-            </button>
-          </div>
+          {/* Right: Account switcher + Wallet + Auth */}
+          <div className="flex items-center gap-2 shrink-0">
 
-          <div className="flex items-center gap-4">
-            {/* Balance Display - Professional Card */}
-            <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#11152b] border border-[#1e2338] backdrop-blur-sm hover:border-[#00b59c]/30 transition-colors">
+            {/* Account type pills */}
+            <div className="flex items-center bg-[#11152b] border border-[#1e2338] rounded-lg p-0.5 gap-0.5">
+              <button
+                onClick={() => setAccountType("Demo")}
+                className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                  accountType === "Demo"
+                    ? "bg-[#00b59c]/20 text-[#00b59c] border border-[#00b59c]/30"
+                    : "text-[#6c737f] hover:text-white"
+                }`}
+              >Demo</button>
+              <button
+                onClick={() => {
+                  if (!authToken) { showNotification("Login required for Live trading", false); setIsAuthOpen(true); return; }
+                  setAccountType("Live");
+                }}
+                className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                  accountType === "Live"
+                    ? "bg-[#e95e4b]/20 text-[#e95e4b] border border-[#e95e4b]/30"
+                    : "text-[#6c737f] hover:text-white"
+                }`}
+              >Live</button>
+            </div>
+
+            {/* Wallet balance — always visible */}
+            <div
+              onClick={() => setCurrentView("cashier")}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#11152b] border border-[#1e2338] hover:border-[#00b59c]/40 cursor-pointer transition-all group"
+            >
               <div className="text-right">
-                <span className="text-[10px] text-[#6c737f] uppercase tracking-wider font-semibold block mb-1">
-                  {accountType} Balance
-                </span>
-                <div className="text-lg font-mono font-bold text-white">
-                  KSh {accountType === "Demo" ? demoBalance.toLocaleString() : liveBalance.toLocaleString()}
+                <div className="text-[9px] text-[#6c737f] uppercase tracking-widest font-semibold leading-none mb-0.5">
+                  {accountType === "Demo" ? "Demo" : "Live"} Balance
+                </div>
+                <div className="text-sm font-mono font-black text-white group-hover:text-[#00b59c] transition-colors">
+                  KSh {(accountType === "Demo" ? demoBalance : liveBalance).toLocaleString()}
                 </div>
               </div>
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-base font-bold border ${
-                accountType === "Demo"
-                  ? 'bg-[#00b59c]/10 border-[#00b59c]/30 text-[#00b59c]'
-                  : liveBalance > 0
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                  : 'bg-[#e95e4b]/10 border-[#e95e4b]/30 text-[#e95e4b]'
+              <div className={`w-7 h-7 rounded-md flex items-center justify-center ${
+                accountType === "Demo" ? "bg-[#00b59c]/15 text-[#00b59c]" : "bg-[#e95e4b]/15 text-[#e95e4b]"
               }`}>
-                {accountType === "Demo" ? "T" : liveBalance > 0 ? "L" : "!"}
+                <DollarSign className="w-3.5 h-3.5" />
               </div>
             </div>
 
-            {/* User Authentication Status */}
-            <div className="border-t border-[#1e2338] pt-4 md:border-t-0 md:border-l md:pl-4 flex items-center gap-3 w-full md:w-auto">
-              {authToken && userProfile ? (
-                <div className="flex items-center gap-3">
-                  <div className="text-right hidden md:block">
-                    <span className="text-[9px] text-[#00b59c] font-bold block leading-none tracking-wider">VERIFIED</span>
-                    <strong className="text-xs text-white font-semibold">{userProfile.name}</strong>
-                  </div>
-                  <button
-                    onClick={() => setCurrentView("cashier")}
-                    className="px-3 py-2 rounded-lg bg-[#00b59c] text-slate-950 font-bold text-xs shadow-md flex items-center gap-2 transition-all hover:bg-[#00a389] active:scale-95"
-                  >
-                    <DollarSign className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Cashier</span>
-                  </button>
+            {/* Auth / Deposit */}
+            {authToken && userProfile ? (
+              <div className="flex items-center gap-2">
+                <div className="hidden lg:flex flex-col items-end">
+                  <span className="text-[9px] text-[#00b59c] font-bold uppercase tracking-wider leading-none">Verified</span>
+                  <span className="text-[11px] text-white font-semibold leading-tight">{userProfile.name.split(" ")[0]}</span>
                 </div>
-              ) : (
                 <button
-                  onClick={() => setIsAuthOpen(true)}
-                  className="px-4 py-2 bg-[#e95e4b] hover:bg-[#d94033] text-white rounded-lg text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                  onClick={() => setCurrentView("cashier")}
+                  className="px-3 py-2 bg-gradient-to-r from-[#00b59c] to-[#009c86] text-white rounded-lg text-xs font-bold shadow-lg shadow-[#00b59c]/20 flex items-center gap-1.5 transition-all hover:shadow-[#00b59c]/30 active:scale-95"
                 >
-                  <User className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Sign In</span>
+                  <DollarSign className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Deposit</span>
                 </button>
-              )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsAuthOpen(true)}
+                className="px-3 py-2 bg-gradient-to-r from-[#e95e4b] to-[#d94033] text-white rounded-lg text-xs font-bold shadow-lg shadow-[#e95e4b]/20 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Sign In</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Balance strip — visible on mobile, always shows both account balances ── */}
+        <div className="border-t border-[#1e2338]/60 bg-[#0a0d12]">
+          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-4">
+            {/* Both balances at a glance */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00b59c]"></span>
+                <span className="text-[10px] text-[#6c737f] font-medium">Demo</span>
+                <span className="text-[11px] font-mono font-bold text-white">KSh {demoBalance.toLocaleString()}</span>
+              </div>
+              <div className="w-px h-3 bg-[#1e2338]"></div>
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#e95e4b]"></span>
+                <span className="text-[10px] text-[#6c737f] font-medium">Live</span>
+                <span className={`text-[11px] font-mono font-bold ${liveBalance > 0 ? "text-emerald-400" : "text-[#6c737f]"}`}>
+                  KSh {liveBalance.toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Today's net P&L */}
+            {settledContracts.length > 0 && (() => {
+              const todayPnl = settledContracts.reduce((sum, c) => {
+                const won = c.result === "WON";
+                return sum + (won ? (c.payoutAmount || 0) - c.stake : -c.stake);
+              }, 0);
+              return (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] text-[#6c737f] uppercase tracking-wider">Session P&L</span>
+                  <span className={`text-[11px] font-mono font-bold ${todayPnl >= 0 ? "text-emerald-400" : "text-[#e95e4b]"}`}>
+                    {todayPnl >= 0 ? "+" : ""}KSh {Math.abs(todayPnl).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* Mobile nav — scrollable */}
+            <div className="flex md:hidden items-center gap-1 overflow-x-auto scrollbar-none ml-auto">
+              {[
+                { id: "trade", label: "Trade", icon: <TrendingUp className="w-3 h-3" /> },
+                { id: "cashier", label: "Cashier", icon: <DollarSign className="w-3 h-3" /> },
+                { id: "ai", label: "Signals", icon: <Zap className="w-3 h-3" /> },
+                { id: "academy", label: "Academy", icon: <BookOpen className="w-3 h-3" /> },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setCurrentView(tab.id as any)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    currentView === tab.id
+                      ? "bg-[#00b59c]/20 text-[#00b59c]"
+                      : "text-[#6c737f] hover:text-white"
+                  }`}
+                >
+                  {tab.icon}{tab.label}
+                </button>
+              ))}
             </div>
           </div>
-
         </div>
       </header>
-
-      {/* Email Verification check banner */}
-
-      {/* Navigation Tabs */}
-      <div className="bg-[#0a0e18] border-b border-[#1e2338]/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-0 text-xs overflow-x-auto py-0 scrollbar-none">
-          <button
-            onClick={() => setCurrentView("trade")}
-            className={`py-4 px-4 border-b-2 transition-colors font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              currentView === "trade"
-                ? "border-[#00b59c] text-[#00b59c]"
-                : "border-transparent text-[#b8bcc4] hover:text-white"
-            }`}
-          >
-            <TrendingUp className="w-4 h-4" />
-            Trading Desk
-          </button>
-          
-          <button
-            onClick={() => setCurrentView("cashier")}
-            className={`py-4 px-4 border-b-2 transition-colors font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              currentView === "cashier"
-                ? "border-[#00b59c] text-[#00b59c]"
-                : "border-transparent text-[#b8bcc4] hover:text-white"
-            }`}
-          >
-            <DollarSign className="w-4 h-4" />
-            Cashier
-          </button>
-          
-          <button
-            onClick={() => setCurrentView("ai")}
-            className={`py-4 px-4 border-b-2 transition-colors font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              currentView === "ai"
-                ? "border-[#00b59c] text-[#00b59c]"
-                : "border-transparent text-[#b8bcc4] hover:text-white"
-            }`}
-          >
-            <Zap className="w-4 h-4" />
-            Signals
-          </button>
-          
-          <button
-            onClick={() => setCurrentView("academy")}
-            className={`py-4 px-4 border-b-2 transition-colors font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              currentView === "academy"
-                ? "border-[#00b59c] text-[#00b59c]"
-                : "border-transparent text-[#b8bcc4] hover:text-white"
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            Academy
-          </button>
-        </div>
-      </div>
 
       {/* Main Content Area */}
       <main className="flex-1 w-full bg-[#0a0e18]" id="traderpro-viewport-container">
@@ -939,21 +952,48 @@ export default function App() {
             </div>
 
             {/* RIGHT PANEL: Trading Controls */}
-            <div className="xl:col-span-1 bg-[#131722]/50 border-l border-[#1e222d] overflow-y-auto max-h-[calc(100vh-180px)]">
+            <div className="xl:col-span-1 bg-[#0d1117] border-l border-[#1e222d] overflow-y-auto max-h-[calc(100vh-100px)]">
+              
+              {/* Balance card at top of trading panel */}
+              <div className="p-4 border-b border-[#1e222d] bg-gradient-to-r from-[#11152b] to-[#0d1117]">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[9px] text-[#6c737f] uppercase tracking-widest font-bold">Your Wallet</span>
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                    accountType === "Demo"
+                      ? "bg-[#00b59c]/15 text-[#00b59c]"
+                      : "bg-[#e95e4b]/15 text-[#e95e4b]"
+                  }`}>{accountType}</span>
+                </div>
+                <div className="text-2xl font-black font-mono text-white tracking-tight">
+                  KSh {(accountType === "Demo" ? demoBalance : liveBalance).toLocaleString()}
+                </div>
+                <div className="text-[10px] text-[#6c737f] mt-0.5">
+                  {accountType === "Demo" ? "Virtual funds — no real money" : "Real funds — withdrawable via M-Pesa"}
+                </div>
+                {accountType === "Live" && liveBalance === 0 && (
+                  <button
+                    onClick={() => setCurrentView("cashier")}
+                    className="mt-2 w-full py-1.5 text-[10px] font-bold rounded-lg bg-[#00b59c]/20 text-[#00b59c] border border-[#00b59c]/30 hover:bg-[#00b59c]/30 cursor-pointer transition-all"
+                  >
+                    + Deposit via M-Pesa
+                  </button>
+                )}
+              </div>
+
               <div className="p-4 space-y-4">
                 
                 {/* Trade mode selector */}
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Trade Mode</label>
-                  <div className="flex gap-1.5">
+                  <label className="text-[9px] font-bold text-[#6c737f] uppercase tracking-widest block mb-2">Trade Mode</label>
+                  <div className="flex gap-1">
                     {["Rise/Fall", "Digits", "Accumulators"].map((mode) => (
                       <button
                         key={mode}
                         onClick={() => setTradeMode(mode as any)}
-                        className={`flex-1 px-2 py-2 text-[10px] font-bold rounded cursor-pointer transition-all ${
+                        className={`flex-1 px-1.5 py-2 text-[10px] font-bold rounded-lg cursor-pointer transition-all ${
                           tradeMode === mode
-                            ? "bg-[#00b59c] text-white shadow-lg shadow-[#00b59c]/20"
-                            : "bg-[#0b0e11] border border-[#1e222d] text-slate-400 hover:text-slate-200"
+                            ? "bg-[#00b59c] text-white shadow-lg shadow-[#00b59c]/25"
+                            : "bg-[#11152b] border border-[#1e222d] text-[#6c737f] hover:text-white hover:border-[#2a3050]"
                         }`}
                       >
                         {mode}
@@ -964,43 +1004,39 @@ export default function App() {
 
                 {/* Stake Input */}
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Stake (KES)</label>
+                  <label className="text-[9px] font-bold text-[#6c737f] uppercase tracking-widest block mb-2">Stake (KES)</label>
                   <div className="flex gap-1.5">
                     <button
                       type="button"
                       onClick={() => setStake((s) => Math.max(50, s - 500))}
-                      className="px-2 py-2 bg-[#0b0e11] hover:bg-slate-900 text-slate-400 border border-[#1e222d] rounded cursor-pointer text-xs font-bold"
-                    >
-                      −
-                    </button>
+                      className="w-9 h-9 bg-[#11152b] hover:bg-[#1a1f35] text-slate-300 border border-[#1e222d] rounded-lg cursor-pointer text-sm font-bold flex items-center justify-center transition-all"
+                    >−</button>
                     <input
                       type="number"
                       value={stake}
                       onChange={(e) => setStake(Math.min(50000, Math.max(50, parseInt(e.target.value) || 50)))}
-                      className="flex-1 bg-[#0b0e11] border border-[#1e222d] rounded text-center text-xs font-mono font-bold text-white focus:outline-none focus:border-[#00b59c]"
+                      className="flex-1 h-9 bg-[#11152b] border border-[#1e222d] rounded-lg text-center text-sm font-mono font-black text-white focus:outline-none focus:border-[#00b59c] focus:ring-1 focus:ring-[#00b59c]/20 transition-all"
                     />
                     <button
                       type="button"
                       onClick={() => setStake((s) => Math.min(50000, s + 500))}
-                      className="px-2 py-2 bg-[#0b0e11] hover:bg-slate-900 text-slate-400 border border-[#1e222d] rounded cursor-pointer text-xs font-bold"
-                    >
-                      +
-                    </button>
+                      className="w-9 h-9 bg-[#11152b] hover:bg-[#1a1f35] text-slate-300 border border-[#1e222d] rounded-lg cursor-pointer text-sm font-bold flex items-center justify-center transition-all"
+                    >+</button>
                   </div>
                   
                   {/* Quick amounts */}
-                  <div className="grid grid-cols-2 gap-1.5 mt-2">
+                  <div className="grid grid-cols-4 gap-1 mt-2">
                     {[100, 500, 1000, 5000].map((val) => (
                       <button
                         key={val}
                         onClick={() => setStake(val)}
-                        className={`py-1.5 text-[9px] font-bold rounded cursor-pointer transition-all ${
+                        className={`py-1.5 text-[9px] font-bold rounded-lg cursor-pointer transition-all ${
                           stake === val
-                            ? "bg-[#00b59c]/10 text-[#00b59c] border border-[#00b59c]/30"
-                            : "bg-[#0b0e11] border border-[#1e222d] text-slate-400 hover:border-[#2a2e39]"
+                            ? "bg-[#00b59c]/15 text-[#00b59c] border border-[#00b59c]/30"
+                            : "bg-[#11152b] border border-[#1e222d] text-[#6c737f] hover:text-white hover:border-[#2a3050]"
                         }`}
                       >
-                          Sh {val}
+                        {val >= 1000 ? `${val/1000}k` : val}
                       </button>
                     ))}
                   </div>
@@ -1008,16 +1044,16 @@ export default function App() {
 
                 {/* Duration */}
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Duration</label>
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <label className="text-[9px] font-bold text-[#6c737f] uppercase tracking-widest block mb-2">Duration</label>
+                  <div className="grid grid-cols-4 gap-1">
                     {[5, 10, 15, 30].map((sec) => (
                       <button
                         key={sec}
                         onClick={() => setDuration(sec)}
-                        className={`py-2 text-xs font-bold rounded cursor-pointer transition-all ${
+                        className={`py-2 text-[10px] font-bold rounded-lg cursor-pointer transition-all ${
                           duration === sec
-                            ? "bg-[#f33350]/10 text-[#f33350] border border-[#f33350]/30"
-                            : "bg-[#0b0e11] border border-[#1e222d] text-slate-400 hover:border-[#2a2e39]"
+                            ? "bg-[#e95e4b]/15 text-[#e95e4b] border border-[#e95e4b]/30"
+                            : "bg-[#11152b] border border-[#1e222d] text-[#6c737f] hover:text-white hover:border-[#2a3050]"
                         }`}
                       >
                         {sec}s
@@ -1026,37 +1062,56 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Payout Display */}
-                <div className="bg-[#0b0e11] border border-[#1e222d] p-3 rounded-lg space-y-2">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-400">Payout:</span>
-                    <span className="font-bold text-[#00b59c]">+{selectedAsset.payout}%</span>
+                {/* Payout summary card */}
+                <div className="rounded-xl bg-[#11152b] border border-[#1e222d] overflow-hidden">
+                  <div className="flex justify-between items-center px-3 py-2.5 border-b border-[#1e222d]">
+                    <span className="text-[10px] text-[#6c737f] font-medium">Asset</span>
+                    <span className="text-[10px] font-bold text-white">{selectedAsset.name}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs border-t border-[#1e222d] pt-2">
-                    <span className="text-slate-400">Profit Potential:</span>
-                    <span className="font-mono font-bold text-[#00b59c]">KSh {(stake * selectedAsset.payout / 100).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                  <div className="flex justify-between items-center px-3 py-2.5 border-b border-[#1e222d]">
+                    <span className="text-[10px] text-[#6c737f] font-medium">Payout</span>
+                    <span className="text-[10px] font-bold text-[#00b59c]">+{selectedAsset.payout}%</span>
+                  </div>
+                  <div className="flex justify-between items-center px-3 py-2.5">
+                    <span className="text-[10px] text-[#6c737f] font-medium">Profit if won</span>
+                    <span className="text-sm font-mono font-black text-[#00b59c]">
+                      KSh {(stake * selectedAsset.payout / 100).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                    </span>
                   </div>
                 </div>
 
                 {/* Trade Buttons */}
-                <div className="grid grid-cols-2 gap-2 pt-2">
+                <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => placeContract("Higher")}
-                    className="py-3 bg-[#00b59c] hover:bg-[#009c86] text-white rounded-lg font-bold text-xs cursor-pointer shadow-lg shadow-[#00b59c]/20 transition-all active:scale-95 flex flex-col items-center gap-0.5"
+                    className="py-4 bg-gradient-to-b from-[#00c9ad] to-[#00b59c] hover:from-[#00b59c] hover:to-[#009c86] text-white rounded-xl font-black text-xs cursor-pointer shadow-lg shadow-[#00b59c]/30 transition-all active:scale-95 flex flex-col items-center gap-0.5"
                   >
-                    <span>▲ RISE</span>
-                    <span className="text-[9px] font-normal opacity-80">Higher</span>
+                    <span className="text-base leading-none">▲</span>
+                    <span className="text-xs font-black tracking-wide">RISE</span>
+                    <span className="text-[9px] font-normal opacity-70">Price goes higher</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => placeContract("Lower")}
-                    className="py-3 bg-[#f33350] hover:bg-[#d01d37] text-white rounded-lg font-bold text-xs cursor-pointer shadow-lg shadow-rose-500/20 transition-all active:scale-95 flex flex-col items-center gap-0.5"
+                    className="py-4 bg-gradient-to-b from-[#f55070] to-[#e95e4b] hover:from-[#e95e4b] hover:to-[#d94033] text-white rounded-xl font-black text-xs cursor-pointer shadow-lg shadow-[#e95e4b]/30 transition-all active:scale-95 flex flex-col items-center gap-0.5"
                   >
-                    <span>▼ FALL</span>
-                    <span className="text-[9px] font-normal opacity-80">Lower</span>
+                    <span className="text-base leading-none">▼</span>
+                    <span className="text-xs font-black tracking-wide">FALL</span>
+                    <span className="text-[9px] font-normal opacity-70">Price goes lower</span>
                   </button>
                 </div>
+
+                {/* Active contracts count badge */}
+                {activeContracts.length > 0 && (
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                      <span className="text-[10px] text-amber-300 font-semibold">{activeContracts.length} contract{activeContracts.length > 1 ? "s" : ""} running</span>
+                    </div>
+                    <span className="text-[9px] text-amber-400/70">Settling...</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
