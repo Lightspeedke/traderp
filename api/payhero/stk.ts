@@ -60,7 +60,7 @@ export default async function handler(
           customer_name,
           description: `TraderPro254 Deposit - Ref: ${reference_id}`,
           external_reference: reference_id,
-          callback_url: `${process.env.VERCEL_URL || "https://tradepro254.com"}/api/payhero/callback`,
+          callback_url: "https://tradepro254.com/api/payhero/callback",
         }),
       }
     )) as any;
