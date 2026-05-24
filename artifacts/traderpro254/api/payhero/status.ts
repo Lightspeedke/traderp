@@ -1,4 +1,4 @@
-import { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 // In-memory store (shared with stk.ts via module cache)
 const transactionStore: Map<
