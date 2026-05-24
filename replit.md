@@ -1,36 +1,51 @@
-# [Project name]
+# TraderPro254
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A binary options and forex trading platform for the Kenyan market, featuring live price charts, M-Pesa deposits/withdrawals via PayHero, Firebase authentication, and multiple trade modes (Rise/Fall, Digits, Accumulators).
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/traderpro254 run dev` — run the frontend (auto-assigned port)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
+- Frontend: React 19 + Vite + Tailwind CSS v4
+- Auth: Firebase Authentication
+- Payments: PayHero API (M-Pesa STK Push)
 - API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- DB: PostgreSQL + Drizzle ORM (scaffold, not yet used)
+- Build: esbuild (CJS bundle for API server)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/traderpro254/src/App.tsx` — main app component with all trading logic
+- `artifacts/traderpro254/src/components/` — TradingChart, Cashier, AuthPanel, EduSection
+- `artifacts/traderpro254/src/firebaseApp.ts` — Firebase initialization
+- `artifacts/traderpro254/src/firebaseConfig.ts` — Firebase project config
+- `artifacts/traderpro254/src/types.ts` — shared TypeScript types
+- `artifacts/api-server/src/routes/payhero.ts` — PayHero M-Pesa API routes
+- `lib/api-spec/openapi.yaml` — API spec (healthz only for now)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Purely client-rendered Vite + React app; no SSR
+- Firebase used for authentication (email/password + Google)
+- PayHero API handles M-Pesa STK push payments via the Express API server
+- Trading logic (price ticks, contract settlement) runs entirely client-side
+- Demo mode uses 65% win probability; Live mode uses 10% win probability
+- Balance state is stored in React state + localStorage; sync to server is a best-effort POST
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+TraderPro254 is a binary options trading platform targeting Kenyan traders. Users can:
+- Trade synthetic indices, forex pairs, and crypto options in Demo or Live mode
+- Choose from Rise/Fall, Digits (Match/Differ), and Accumulators trade modes
+- Deposit/withdraw funds via M-Pesa (Safaricom STK Push via PayHero)
+- View live price charts with SMA and Bollinger Bands overlays
+- Track trade history and contract outcomes
 
 ## User preferences
 
@@ -38,7 +53,10 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Firebase config is hardcoded in `src/firebaseConfig.ts` (public project keys, acceptable for client-side Firebase)
+- PayHero credentials are hardcoded in `artifacts/api-server/src/routes/payhero.ts` — move to env vars for production
+- `db_users.json` (file-based DB from Vercel version) is no longer used; user data is in Firebase
+- Do NOT run `pnpm dev` at workspace root — use workflow-filtered commands
 
 ## Pointers
 

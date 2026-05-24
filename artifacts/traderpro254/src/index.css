@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --color-dark-bg: #0a0e18;
+  --color-dark-surface: #11152b;
+  --color-dark-border: #1e2338;
+  --color-dark-border-hover: #2a3050;
+  --color-mint: #00b59c;
+  --color-mint-hover: #009c86;
+  --color-mint-active: #008674;
+  --color-deriv-red: #e95e4b;
+  --color-deriv-red-hover: #d94033;
+  --color-green-success: #4db8a8;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #b8bcc4;
+  --color-text-tertiary: #6c737f;
+}
+
+body {
+  @apply bg-dark-bg text-text-primary;
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}

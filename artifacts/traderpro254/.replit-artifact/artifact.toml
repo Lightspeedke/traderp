@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "TraderPro254"
+version = "1.0.0"
+id = "artifacts/traderpro254"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19116
+
+[services.development]
+run = "pnpm --filter @workspace/traderpro254 run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/traderpro254", "run", "build" ]
+publicDir = "artifacts/traderpro254/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19116"
+BASE_PATH = "/"
