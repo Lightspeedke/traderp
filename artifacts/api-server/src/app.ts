@@ -3,8 +3,12 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { validateEnv } from "./lib/env";
 
 const app: Express = express();
+
+// Validate environment variables on startup
+validateEnv();
 
 app.use(
   pinoHttp({
