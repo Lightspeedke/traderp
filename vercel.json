@@ -1,11 +1,5 @@
 {
   "buildCommand": "pnpm run build",
   "outputDirectory": "artifacts/traderpro254/dist/public",
-  "framework": "vite",
-  "serverlessFunctions": {
-    "artifacts/traderpro254/api/**/*.ts": {
-      "runtime": "nodejs20.x",
-      "memory": 512
-    }
-  }
+  "framework": "vite"
 }
