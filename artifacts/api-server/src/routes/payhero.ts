@@ -66,7 +66,13 @@ function getPublicBaseUrl(req: any): string {
 router.post("/payhero/stk", async (req, res) => {
   try {
     if (!PAYHERO_BASIC_AUTH_TOKEN) {
-      res.status(503).json({ error: "Payment gateway not configured. Please contact support." });
+      req.log.error("[PayHero STK] Payment gateway not configured - PAYHERO_BASIC_AUTH_TOKEN is missing");
+      res.status(503).json({
+        success: false,
+        error: "Payment gateway not configured",
+        message: "PAYHERO_BASIC_AUTH_TOKEN environment variable is not set. Please contact support to configure payments.",
+        code: "PAYMENT_NOT_CONFIGURED"
+      });
       return;
     }
 
@@ -194,10 +200,17 @@ router.post("/payhero/stk", async (req, res) => {
       }
     }
   } catch (error: any) {
+    req.log.error({ error: error?.message, code: error?.code, stack: error?.stack }, "[PayHero STK] Exception");
     const message = error?.name === "AbortError"
       ? "PayHero took too long to respond. Please retry."
+      : error?.code === "ECONNREFUSED"
+      ? "Cannot connect to PayHero. Please check API URL and network connectivity."
       : `PayHero error: ${error?.message || "Unknown"}`;
-    res.status(502).json({ error: message, code: error?.code || "UNKNOWN_ERROR" });
+    res.status(502).json({
+      success: false,
+      error: message,
+      code: error?.code || "UNKNOWN_ERROR"
+    });
   }
 });
 

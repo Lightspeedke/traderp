@@ -28,8 +28,12 @@ export function validateEnv() {
   }
 
   if (missing.length > 0) {
-    console.warn(`⚠️  Missing environment variables: ${missing.join(", ")}`);
-    console.warn("Payment gateway may not work properly without these variables.");
+    console.error(`❌ CRITICAL: Missing required environment variables: ${missing.join(", ")}`);
+    console.error("The payment system will not work without these variables.");
+    console.error("Please set PAYHERO_BASIC_AUTH_TOKEN in your environment.");
+    // Don't throw - allow app to start but payment routes will fail gracefully
+  } else {
+    console.log("✅ Payment system environment variables validated successfully.");
   }
 
   return missing.length === 0;
