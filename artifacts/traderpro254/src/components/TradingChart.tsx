@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Asset, TradeContract } from "../types";
-import { TrendingUp, TrendingDown, Eye, Activity, Sliders, BarChart3, LineChart } from "lucide-react";
+import { TrendingUp, TrendingDown, Activity, BarChart3, LineChart } from "lucide-react";
 
 interface TradingChartProps {
   asset: Asset;
@@ -8,458 +8,624 @@ interface TradingChartProps {
   onTick: (price: number) => void;
 }
 
-interface ChartPoint {
+interface Tick {
+  time: number;
+  price: number;
+}
+
+interface Candle {
   time: number;
   open: number;
   high: number;
   low: number;
   close: number;
+  volume: number;
 }
+
+// ── Box-Muller transform: uniform → standard normal ──
+function gaussianRandom(): number {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+// ── Realistic forex price generator state ──
+interface PriceState {
+  price: number;
+  vol: number;       // current volatility (GARCH-like)
+  momentum: number;  // recent directional bias
+  meanPrice: number; // rolling mean for reversion
+}
+
+function nextPrice(state: PriceState, baseVol: number): { price: number; newState: PriceState } {
+  const { price, vol, momentum, meanPrice } = state;
+
+  // GARCH-like volatility clustering: vol reverts toward base, spikes persist
+  const newVol = Math.max(
+    baseVol * 0.3,
+    Math.min(baseVol * 4, vol * 0.92 + baseVol * 0.08 + baseVol * 0.15 * Math.abs(gaussianRandom()))
+  );
+
+  // Geometric Brownian Motion log-return
+  const drift = 0.0;
+  const randomReturn = gaussianRandom() * newVol;
+
+  // Momentum: slight bias in direction of recent move (trend following)
+  const momentumBias = momentum * 0.18;
+
+  // Mean reversion: gentle pull toward rolling mean (prevents runaway)
+  const reversionStrength = 0.012;
+  const reversionBias = (meanPrice - price) / meanPrice * reversionStrength;
+
+  // Combined log-return
+  const logReturn = drift + randomReturn + momentumBias + reversionBias;
+
+  const newPrice = price * Math.exp(logReturn);
+
+  // Update momentum as weighted average of recent return
+  const newMomentum = momentum * 0.75 + logReturn * 0.25;
+
+  // Update rolling mean slowly
+  const newMean = meanPrice * 0.998 + newPrice * 0.002;
+
+  return {
+    price: newPrice,
+    newState: { price: newPrice, vol: newVol, momentum: newMomentum, meanPrice: newMean },
+  };
+}
+
+// ── Build initial history using the realistic generator ──
+function buildHistory(assetPrice: number, baseVol: number, count: number, ticksPerCandle: number): {
+  candles: Candle[];
+  ticks: Tick[];
+  finalState: PriceState;
+} {
+  let state: PriceState = {
+    price: assetPrice,
+    vol: baseVol,
+    momentum: 0,
+    meanPrice: assetPrice,
+  };
+
+  const ticks: Tick[] = [];
+  const candles: Candle[] = [];
+  const now = Date.now();
+  const totalTicks = count * ticksPerCandle;
+  const tickIntervalMs = 400;
+
+  let candleOpen = assetPrice;
+  let candleHigh = assetPrice;
+  let candleLow = assetPrice;
+  let candleVolume = 0;
+  let candleStartTime = now - totalTicks * tickIntervalMs;
+
+  for (let i = 0; i < totalTicks; i++) {
+    const tickTime = now - (totalTicks - i) * tickIntervalMs;
+    const { price: newPrice, newState } = nextPrice(state, baseVol);
+    state = newState;
+
+    ticks.push({ time: tickTime, price: newPrice });
+
+    const posInCandle = i % ticksPerCandle;
+    if (posInCandle === 0) {
+      candleOpen = newPrice;
+      candleHigh = newPrice;
+      candleLow = newPrice;
+      candleVolume = 0;
+      candleStartTime = tickTime;
+    }
+    candleHigh = Math.max(candleHigh, newPrice);
+    candleLow = Math.min(candleLow, newPrice);
+    candleVolume += Math.random() * 50 + 20;
+
+    if (posInCandle === ticksPerCandle - 1) {
+      candles.push({
+        time: candleStartTime,
+        open: candleOpen,
+        high: candleHigh,
+        low: candleLow,
+        close: newPrice,
+        volume: candleVolume,
+      });
+    }
+  }
+
+  return { candles, ticks, finalState: state };
+}
+
+const TICKS_PER_CANDLE = 6;
+const MAX_CANDLES = 60;
+const MAX_TICKS = MAX_CANDLES * TICKS_PER_CANDLE;
+const TICK_INTERVAL_MS = 400;
 
 export default function TradingChart({ asset, activeContracts, onTick }: TradingChartProps) {
   const [chartMode, setChartMode] = useState<"line" | "candles">("line");
-  const [points, setPoints] = useState<ChartPoint[]>([]);
+  const [candles, setCandles] = useState<Candle[]>([]);
+  const [ticks, setTicks] = useState<Tick[]>([]);
   const [showSma, setShowSma] = useState(true);
   const [showBands, setShowBands] = useState(false);
+
+  const priceStateRef = useRef<PriceState>({
+    price: asset.currentPrice,
+    vol: asset.volatility * 0.008,
+    momentum: 0,
+    meanPrice: asset.currentPrice,
+  });
+  const tickBufferRef = useRef<Tick[]>([]);
+  const candleInProgressRef = useRef<{ open: number; high: number; low: number; tickCount: number } | null>(null);
   const onTickRef = useRef(onTick);
 
-  // Keep references updated to prevent useEffect stale closure issues
-  useEffect(() => {
-    onTickRef.current = onTick;
-  }, [onTick]);
+  useEffect(() => { onTickRef.current = onTick; }, [onTick]);
 
-  // Generate initial historical points when asset changes
+  // Build initial history when asset changes
   useEffect(() => {
-    let basePrice = asset.currentPrice;
-    const initialPoints: ChartPoint[] = [];
-    const now = Date.now();
-    
-    // Seed 40 historical points back in time
-    for (let i = 40; i >= 1; i--) {
-      const time = now - i * 3000;
-      const change = (Math.random() - 0.48) * asset.volatility * 3;
-      const open = basePrice;
-      const close = basePrice + change;
-      const high = Math.max(open, close) + Math.random() * asset.volatility * 0.8;
-      const low = Math.min(open, close) - Math.random() * asset.volatility * 0.8;
-      
-      initialPoints.push({ time, open, high, low, close });
-      basePrice = close;
-    }
-    setPoints(initialPoints);
-  }, [asset.id, asset.currentPrice, asset.volatility]);
+    const baseVol = asset.volatility * 0.008;
+    const { candles: hist, ticks: histTicks, finalState } = buildHistory(
+      asset.currentPrice,
+      baseVol,
+      MAX_CANDLES,
+      TICKS_PER_CANDLE
+    );
+    priceStateRef.current = finalState;
+    candleInProgressRef.current = null;
+    tickBufferRef.current = [];
+    setCandles(hist);
+    setTicks(histTicks);
+  }, [asset.id]);
 
-  // Real-time ticking interval (every 1 second)
+  // Live tick loop
   useEffect(() => {
+    const baseVol = asset.volatility * 0.008;
+
     const interval = setInterval(() => {
-      setPoints((prev) => {
-        if (prev.length === 0) return prev;
-        const last = prev[prev.length - 1];
-        const time = Date.now();
-        
-        // Slightly random walk, biased to mean-revert or drift according to volatility
-        const change = (Math.random() - 0.495) * asset.volatility * 0.45;
-        const open = last.close;
-        const close = last.close + change;
-        const high = Math.max(open, close) + Math.random() * asset.volatility * 0.2;
-        const low = Math.min(open, close) - Math.random() * asset.volatility * 0.2;
-        
-        const nextPoint: ChartPoint = { time, open, high, low, close };
-        
-        // Notify parent about the new price tick on the next tick loop to avoid React render side effects
-        setTimeout(() => {
-          onTickRef.current(close);
-        }, 0);
-        
-        // Limit to 60 visible points
-        const updated = [...prev, nextPoint];
-        if (updated.length > 50) {
-          updated.shift();
-        }
-        return updated;
+      const { price: newPrice, newState } = nextPrice(priceStateRef.current, baseVol);
+      priceStateRef.current = newState;
+
+      const now = Date.now();
+      const newTick: Tick = { time: now, price: newPrice };
+
+      // Notify parent
+      setTimeout(() => onTickRef.current(newPrice), 0);
+
+      setTicks(prev => {
+        const updated = [...prev, newTick];
+        return updated.length > MAX_TICKS ? updated.slice(updated.length - MAX_TICKS) : updated;
       });
-    }, 1600);
+
+      // Build candle from tick buffer
+      const buf = tickBufferRef.current;
+      buf.push(newTick);
+
+      if (!candleInProgressRef.current) {
+        candleInProgressRef.current = { open: newPrice, high: newPrice, low: newPrice, tickCount: 1 };
+      } else {
+        candleInProgressRef.current.high = Math.max(candleInProgressRef.current.high, newPrice);
+        candleInProgressRef.current.low = Math.min(candleInProgressRef.current.low, newPrice);
+        candleInProgressRef.current.tickCount++;
+      }
+
+      if (buf.length >= TICKS_PER_CANDLE) {
+        const cip = candleInProgressRef.current!;
+        const finishedCandle: Candle = {
+          time: buf[0].time,
+          open: cip.open,
+          high: cip.high,
+          low: cip.low,
+          close: newPrice,
+          volume: Math.random() * 200 + 50,
+        };
+        tickBufferRef.current = [];
+        candleInProgressRef.current = null;
+        setCandles(prev => {
+          const updated = [...prev, finishedCandle];
+          return updated.length > MAX_CANDLES ? updated.slice(updated.length - MAX_CANDLES) : updated;
+        });
+      }
+    }, TICK_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [asset.id, asset.volatility]);
 
-  if (points.length === 0) {
+  // ─── Rendering ───────────────────────────────────────────────────────────────
+  const dataPoints = chartMode === "line" ? ticks : candles;
+  if (dataPoints.length === 0) {
     return (
       <div className="h-96 flex items-center justify-center bg-[#0b0e11]/60 rounded-xl border border-[#1e222d]">
         <div className="flex flex-col items-center gap-2">
-          <Activity className="w-8 h-8 text-rose-500 animate-spin" />
-          <span className="text-gray-400 font-mono text-sm">Synchronizing TraderPro254 Live Feed...</span>
+          <Activity className="w-8 h-8 text-[#00b59c] animate-spin" />
+          <span className="text-slate-400 font-mono text-sm">Synchronizing live feed...</span>
         </div>
       </div>
     );
   }
 
-  const lastPrice = points[points.length - 1].close;
-  const isUp = lastPrice >= points[points.length > 1 ? points.length - 2 : 0].close;
+  const lastTick = ticks[ticks.length - 1];
+  const prevTick = ticks.length > 1 ? ticks[ticks.length - 2] : ticks[0];
+  const lastPrice = lastTick?.price ?? asset.currentPrice;
+  const isUp = lastPrice >= prevTick.price;
 
-  // Render variables
-  const padding = 30;
-  const chartHeight = 320;
-  const chartWidth = 720; // responsive scaling
+  const padding = { top: 20, right: 70, bottom: 40, left: 10 };
+  const chartW = 800;
+  const chartH = 300;
+  const plotW = chartW - padding.left - padding.right;
+  const plotH = chartH - padding.top - padding.bottom;
 
-  const prices = points.map((p) => p.close);
-  const highs = points.map((p) => p.high);
-  const lows = points.map((p) => p.low);
-  const minPrice = Math.min(...lows) * 0.9995;
-  const maxPrice = Math.max(...highs) * 1.0005;
-  const priceRange = maxPrice - minPrice;
-
-  // Convert price coordinate to pixel height
-  const getX = (index: number) => {
-    return padding + (index * (chartWidth - padding * 2)) / (points.length - 1);
-  };
-
-  const getY = (price: number) => {
-    return chartHeight - padding - ((price - minPrice) * (chartHeight - padding * 2)) / priceRange;
-  };
-
-  // SVG Line path string
-  let linePath = "";
-  let areaPath = "";
-  if (points.length > 0) {
-    points.forEach((p, idx) => {
-      const x = getX(idx);
-      const y = getY(p.close);
-      if (idx === 0) {
-        linePath += `M ${x} ${y}`;
-        areaPath += `M ${x} ${chartHeight - padding} L ${x} ${y}`;
-      } else {
-        linePath += ` L ${x} ${y}`;
-        areaPath += ` L ${x} ${y}`;
-      }
-    });
-    areaPath += ` L ${getX(points.length - 1)} ${chartHeight - padding} Z`;
+  // Price range from visible data
+  let minP: number, maxP: number;
+  if (chartMode === "candles") {
+    minP = Math.min(...candles.map(c => c.low));
+    maxP = Math.max(...candles.map(c => c.high));
+  } else {
+    const visiblePrices = ticks.map(t => t.price);
+    minP = Math.min(...visiblePrices);
+    maxP = Math.max(...visiblePrices);
   }
+  // Add 10% padding to price range so candles don't touch edges
+  const rangePad = (maxP - minP) * 0.12 || lastPrice * 0.002;
+  minP -= rangePad;
+  maxP += rangePad;
+  const priceRange = maxP - minP || 1;
 
-  // Calculate Simple Moving Average (SMA 10)
-  const smaPoints: { x: number; y: number }[] = [];
-  if (showSma && points.length >= 10) {
-    for (let i = 9; i < points.length; i++) {
-      const subset = points.slice(i - 9, i + 1);
-      const sum = subset.reduce((acc, p) => acc + p.close, 0);
-      const avg = sum / 10;
-      smaPoints.push({ x: getX(i), y: getY(avg) });
+  const px = (i: number, total: number) =>
+    padding.left + (i / Math.max(total - 1, 1)) * plotW;
+  const py = (price: number) =>
+    padding.top + plotH - ((price - minP) / priceRange) * plotH;
+
+  // ── Smooth bezier line path from ticks ──
+  const buildSmoothPath = (pts: { x: number; y: number }[]): string => {
+    if (pts.length < 2) return "";
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) {
+      const p0 = pts[i - 1];
+      const p1 = pts[i];
+      const cpx = (p0.x + p1.x) / 2;
+      d += ` C ${cpx} ${p0.y} ${cpx} ${p1.y} ${p1.x} ${p1.y}`;
+    }
+    return d;
+  };
+
+  const tickXYs = ticks.map((t, i) => ({ x: px(i, ticks.length), y: py(t.price) }));
+  const linePath = buildSmoothPath(tickXYs);
+  const areaPath = linePath
+    ? `${linePath} L ${tickXYs[tickXYs.length - 1].x} ${py(minP)} L ${tickXYs[0].x} ${py(minP)} Z`
+    : "";
+
+  // ── SMA on whichever series we have ──
+  const smaSource = chartMode === "candles" ? candles.map(c => c.close) : ticks.map(t => t.price);
+  const smaPeriod = 14;
+  const smaXYs: { x: number; y: number }[] = [];
+  if (showSma && smaSource.length >= smaPeriod) {
+    for (let i = smaPeriod - 1; i < smaSource.length; i++) {
+      const avg = smaSource.slice(i - smaPeriod + 1, i + 1).reduce((a, b) => a + b, 0) / smaPeriod;
+      const xVal = chartMode === "candles"
+        ? px(i, candles.length)
+        : px(i, ticks.length);
+      smaXYs.push({ x: xVal, y: py(avg) });
+    }
+  }
+  const smaPath = buildSmoothPath(smaXYs);
+
+  // ── Bollinger Bands ──
+  const bbUpper: { x: number; y: number }[] = [];
+  const bbLower: { x: number; y: number }[] = [];
+  const bbMid: { x: number; y: number }[] = [];
+  const bbPeriod = 20;
+  if (showBands && smaSource.length >= bbPeriod) {
+    for (let i = bbPeriod - 1; i < smaSource.length; i++) {
+      const slice = smaSource.slice(i - bbPeriod + 1, i + 1);
+      const mean = slice.reduce((a, b) => a + b, 0) / bbPeriod;
+      const variance = slice.reduce((a, b) => a + (b - mean) ** 2, 0) / bbPeriod;
+      const stddev = Math.sqrt(variance);
+      const xVal = chartMode === "candles" ? px(i, candles.length) : px(i, ticks.length);
+      bbUpper.push({ x: xVal, y: py(mean + 2 * stddev) });
+      bbMid.push({ x: xVal, y: py(mean) });
+      bbLower.push({ x: xVal, y: py(mean - 2 * stddev) });
     }
   }
 
-  // Calculate simple Simulated Bollinger Bands
-  const upperBandPoints: { x: number; y: number }[] = [];
-  const lowerBandPoints: { x: number; y: number }[] = [];
-  if (showBands && points.length >= 10) {
-    for (let i = 9; i < points.length; i++) {
-      const subset = points.slice(i - 9, i + 1);
-      const sum = subset.reduce((acc, p) => acc + p.close, 0);
-      const avg = sum / 10;
-      
-      // simulated deviation
-      const dev = asset.volatility * 1.5;
-      upperBandPoints.push({ x: getX(i), y: getY(avg + dev) });
-      lowerBandPoints.push({ x: getX(i), y: getY(avg - dev) });
+  // ── Price grid labels ──
+  const gridLevels = 5;
+  const gridLines = Array.from({ length: gridLevels }, (_, i) => {
+    const ratio = i / (gridLevels - 1);
+    const price = maxP - ratio * priceRange;
+    const y = padding.top + ratio * plotH;
+    return { y, price };
+  });
+
+  // ── Time axis labels ──
+  const timeLabels: { x: number; label: string }[] = [];
+  if (chartMode === "candles" && candles.length > 0) {
+    const step = Math.max(1, Math.floor(candles.length / 6));
+    for (let i = 0; i < candles.length; i += step) {
+      const d = new Date(candles[i].time);
+      const label = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+      timeLabels.push({ x: px(i, candles.length), label });
+    }
+  } else if (chartMode === "line" && ticks.length > 0) {
+    const step = Math.max(1, Math.floor(ticks.length / 6));
+    for (let i = 0; i < ticks.length; i += step) {
+      const d = new Date(ticks[i].time);
+      const label = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}:${d.getSeconds().toString().padStart(2, "0")}`;
+      timeLabels.push({ x: px(i, ticks.length), label });
     }
   }
 
-  // Filter trade levels on the current asset
-  const relevantContracts = activeContracts.filter((c) => c.assetId === asset.id && !c.settled);
+  // ── Candle body width ──
+  const candleW = Math.max(2, Math.min(12, plotW / candles.length * 0.6));
+
+  // ── Volume bars ──
+  const maxVol = Math.max(...candles.map(c => c.volume), 1);
+
+  // Active contracts relevant to this asset
+  const relevantContracts = activeContracts.filter(c => c.assetId === asset.id && !c.settled);
+
+  // Price change since first visible tick
+  const firstPrice = ticks[0]?.price ?? lastPrice;
+  const changePct = ((lastPrice - firstPrice) / firstPrice * 100);
 
   return (
-    <div className="bg-[#131722] border border-[#1e222d] rounded-xl shadow-xl overflow-hidden" id="tagoption-main-chart">
-      {/* Chart Top Controller Bar */}
-      <div className="px-5 py-3.5 bg-[#0b0e11]/80 border-b border-[#1e222d] flex justify-between items-center flex-wrap gap-3">
+    <div className="bg-[#0d1117] border border-[#1e222d] rounded-xl shadow-2xl overflow-hidden" id="tagoption-main-chart">
+
+      {/* ── Chart header ── */}
+      <div className="px-4 py-3 bg-[#0d1117] border-b border-[#1e222d] flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-[rgba(0,181,156,0.1)] border border-[rgba(0,181,156,0.2)]">
-            <Activity className="w-5 h-5 text-[#00b59c] animate-pulse" />
+          <div className="p-1.5 rounded-lg bg-[#00b59c]/10 border border-[#00b59c]/20">
+            <Activity className="w-4 h-4 text-[#00b59c] animate-pulse" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-slate-100">{asset.name}</span>
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-[#1e222d] text-purple-400 border border-[#2a2e39]">
-                STABLE
+              <span className="text-sm font-bold text-white">{asset.name}</span>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#1e222d] text-purple-400 border border-[#2a2e39] uppercase tracking-wider">
+                Live
               </span>
             </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-lg font-mono font-bold tracking-tight text-white">
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-xl font-black font-mono text-white tracking-tighter">
                 {lastPrice.toFixed(4)}
               </span>
-              <span className={`text-xs font-mono flex items-center ${isUp ? "text-[#00b59c]" : "text-rose-400"}`}>
-                {isUp ? <TrendingUp className="w-3.5 h-3.5 mr-0.5 text-[#00b59c]" /> : <TrendingDown className="w-3.5 h-3.5 mr-0.5" />}
-                {asset.change24h > 0 ? "+" : ""}
-                {asset.change24h.toFixed(2)}%
+              <span className={`text-xs font-bold flex items-center gap-0.5 ${isUp ? "text-[#00b59c]" : "text-[#e95e4b]"}`}>
+                {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                {isUp ? "+" : ""}{changePct.toFixed(3)}%
               </span>
             </div>
           </div>
         </div>
 
-        {/* Configurations controls */}
-        <div className="flex items-center gap-2.5">
-          {/* Chart selector type */}
-          <div className="bg-[#131722] border border-[#1e222d] p-0.5 rounded-lg flex">
+        {/* Controls */}
+        <div className="flex items-center gap-2">
+          {/* Chart type */}
+          <div className="flex bg-[#11152b] border border-[#1e222d] rounded-lg p-0.5 gap-0.5">
             <button
               onClick={() => setChartMode("line")}
-              className={`px-3 py-1 text-xs rounded-md font-medium transition-all cursor-pointer ${
-                chartMode === "line"
-                  ? "bg-[#1e222d] text-white shadow"
-                  : "text-slate-400 hover:text-slate-200"
+              className={`px-2.5 py-1.5 text-[10px] rounded-md font-semibold flex items-center gap-1 cursor-pointer transition-all ${
+                chartMode === "line" ? "bg-[#1e222d] text-white" : "text-[#6c737f] hover:text-white"
               }`}
             >
-              <LineChart className="w-3.5 h-3.5 inline mr-1" />
-              Mountain
+              <LineChart className="w-3 h-3" /> Line
             </button>
             <button
               onClick={() => setChartMode("candles")}
-              className={`px-3 py-1 text-xs rounded-md font-medium transition-all cursor-pointer ${
-                chartMode === "candles"
-                  ? "bg-[#1e222d] text-white shadow"
-                  : "text-slate-400 hover:text-slate-200"
+              className={`px-2.5 py-1.5 text-[10px] rounded-md font-semibold flex items-center gap-1 cursor-pointer transition-all ${
+                chartMode === "candles" ? "bg-[#1e222d] text-white" : "text-[#6c737f] hover:text-white"
               }`}
             >
-              <BarChart3 className="w-3.5 h-3.5 inline mr-1" />
-              Candlesticks
+              <BarChart3 className="w-3 h-3" /> Candles
             </button>
           </div>
 
-          {/* Indicators controller */}
-          <div className="bg-[#131722] border border-[#1e222d] p-0.5 rounded-lg flex text-xs gap-1">
+          {/* Indicators */}
+          <div className="flex bg-[#11152b] border border-[#1e222d] rounded-lg p-0.5 gap-0.5">
             <button
-              onClick={() => setShowSma(!showSma)}
-              className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
-                showSma ? "bg-[rgba(0,181,156,0.1)] text-[#00b59c] border border-[rgba(0,181,156,0.2)]" : "text-slate-400 hover:text-slate-200"
+              onClick={() => setShowSma(s => !s)}
+              className={`px-2.5 py-1.5 text-[10px] rounded-md font-semibold cursor-pointer transition-all ${
+                showSma ? "bg-amber-500/15 text-amber-400 border border-amber-500/20" : "text-[#6c737f] hover:text-white"
               }`}
-            >
-              SMA(10)
-            </button>
+            >SMA(14)</button>
             <button
-              onClick={() => setShowBands(!showBands)}
-              className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
-                showBands ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "text-slate-400 hover:text-slate-200"
+              onClick={() => setShowBands(s => !s)}
+              className={`px-2.5 py-1.5 text-[10px] rounded-md font-semibold cursor-pointer transition-all ${
+                showBands ? "bg-blue-500/15 text-blue-400 border border-blue-500/20" : "text-[#6c737f] hover:text-white"
               }`}
-            >
-              Bollinger Bands
-            </button>
+            >BB(20)</button>
           </div>
         </div>
       </div>
 
-      {/* SVG Container */}
-      <div className="relative p-2 bg-[#0b0e11]/20">
-        <svg
-          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          className="w-full h-auto select-none"
-          id="tagoption-svg-viewport"
-        >
+      {/* ── SVG chart ── */}
+      <div className="relative bg-[#0b0e11] p-1">
+        <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-auto select-none" preserveAspectRatio="none">
           <defs>
-            {/* Gradients */}
-            <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={isUp ? "#00b59c" : "#f43f5e"} stopOpacity="0.22" />
-              <stop offset="100%" stopColor={isUp ? "#00b59c" : "#f43f5e"} stopOpacity="0.0" />
+            <linearGradient id="greenArea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#00b59c" stopOpacity="0.18" />
+              <stop offset="85%" stopColor="#00b59c" stopOpacity="0.02" />
+              <stop offset="100%" stopColor="#00b59c" stopOpacity="0" />
             </linearGradient>
-            <linearGradient id="bollingerGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.04" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+            <linearGradient id="redArea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#e95e4b" stopOpacity="0.18" />
+              <stop offset="85%" stopColor="#e95e4b" stopOpacity="0.02" />
+              <stop offset="100%" stopColor="#e95e4b" stopOpacity="0" />
+            </linearGradient>
+            <linearGradient id="volGreen" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#00b59c" stopOpacity="0.5" />
+              <stop offset="100%" stopColor="#00b59c" stopOpacity="0.1" />
+            </linearGradient>
+            <linearGradient id="volRed" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#e95e4b" stopOpacity="0.5" />
+              <stop offset="100%" stopColor="#e95e4b" stopOpacity="0.1" />
             </linearGradient>
           </defs>
 
-          {/* Grid lines */}
-          {[0.2, 0.4, 0.6, 0.8].map((ratio, idx) => {
-            const y = padding + ratio * (chartHeight - padding * 2);
-            const gridPrice = maxPrice - ratio * priceRange;
-            return (
-              <g key={idx}>
-                <line
-                  x1={padding}
-                  y1={y}
-                  x2={chartWidth - padding}
-                  y2={y}
-                  stroke="#1e222d"
-                  strokeWidth="0.5"
-                  strokeDasharray="4 4"
-                />
-                <text
-                  x={chartWidth - padding + 5}
-                  y={y + 3}
-                  className="font-mono text-[9px] fill-slate-500 text-right"
-                  alignmentBaseline="middle"
-                >
-                  {gridPrice.toFixed(2)}
-                </text>
-              </g>
-            );
-          })}
+          {/* Background */}
+          <rect x="0" y="0" width={chartW} height={chartH} fill="#0b0e11" />
 
-          {/* Bollinger Band Shading & borders */}
-          {showBands && upperBandPoints.length > 0 && (
+          {/* ── Grid lines ── */}
+          {gridLines.map((gl, i) => (
+            <g key={i}>
+              <line
+                x1={padding.left} y1={gl.y}
+                x2={chartW - padding.right} y2={gl.y}
+                stroke="#1a1f2e" strokeWidth="0.75"
+              />
+              <text
+                x={chartW - padding.right + 5} y={gl.y}
+                fontSize="8" fill="#4a5568"
+                dominantBaseline="middle" fontFamily="monospace"
+              >
+                {gl.price.toFixed(2)}
+              </text>
+            </g>
+          ))}
+
+          {/* ── Vertical time grid ── */}
+          {timeLabels.map((tl, i) => (
+            <g key={i}>
+              <line
+                x1={tl.x} y1={padding.top}
+                x2={tl.x} y2={padding.top + plotH}
+                stroke="#1a1f2e" strokeWidth="0.5"
+              />
+              <text
+                x={tl.x} y={padding.top + plotH + 14}
+                fontSize="7" fill="#374151"
+                textAnchor="middle" fontFamily="monospace"
+              >
+                {tl.label}
+              </text>
+            </g>
+          ))}
+
+          {/* ── Bollinger Bands ── */}
+          {showBands && bbUpper.length > 1 && (
             <>
               <path
-                d={`M ${upperBandPoints[0].x} ${upperBandPoints[0].y} ` +
-                  upperBandPoints.slice(1).map((p) => `L ${p.x} ${p.y}`).join(" ") +
-                  ` L ${lowerBandPoints[lowerBandPoints.length - 1].x} ${lowerBandPoints[lowerBandPoints.length - 1].y} ` +
-                  lowerBandPoints.slice().reverse().slice(1).map((p) => `L ${p.x} ${p.y}`).join(" ") +
-                  " Z"}
-                fill="url(#bollingerGradient)"
+                d={`${buildSmoothPath(bbUpper)} L ${bbLower[bbLower.length-1].x} ${bbLower[bbLower.length-1].y} ${buildSmoothPath(bbLower.slice().reverse()).replace("M", "L")} Z`}
+                fill="#3b82f6" fillOpacity="0.05"
               />
-              <path
-                d={upperBandPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth="0.75"
-                strokeOpacity="0.5"
-                strokeDasharray="2 2"
-              />
-              <path
-                d={lowerBandPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth="0.75"
-                strokeOpacity="0.5"
-                strokeDasharray="2 2"
-              />
+              <path d={buildSmoothPath(bbUpper)} fill="none" stroke="#3b82f6" strokeWidth="0.75" strokeOpacity="0.5" strokeDasharray="3 2" />
+              <path d={buildSmoothPath(bbLower)} fill="none" stroke="#3b82f6" strokeWidth="0.75" strokeOpacity="0.5" strokeDasharray="3 2" />
+              <path d={buildSmoothPath(bbMid)} fill="none" stroke="#6366f1" strokeWidth="0.5" strokeOpacity="0.4" />
             </>
           )}
 
-          {/* Mountain Line view */}
-          {chartMode === "line" && (
+          {/* ── Line/Area chart ── */}
+          {chartMode === "line" && ticks.length > 1 && (
             <>
-              {/* Shaded Area */}
-              <path d={areaPath} fill="url(#areaGradient)" />
-              {/* Stroke path */}
+              <path d={areaPath} fill={`url(#${isUp ? "greenArea" : "redArea"})`} />
               <path
                 d={linePath}
                 fill="none"
-                stroke={isUp ? "#00b59c" : "#f43f5e"}
-                strokeWidth="1.75"
+                stroke={isUp ? "#00b59c" : "#e95e4b"}
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
               />
             </>
           )}
 
-          {/* Candlestick rendering */}
-          {chartMode === "candles" &&
-            points.map((p, idx) => {
-              const x = getX(idx);
-              const candleW = Math.max(2, (chartWidth - padding * 2) / points.length * 0.65);
-              const oY = getY(p.open);
-              const cY = getY(p.close);
-              const hY = getY(p.high);
-              const lY = getY(p.low);
-              const isGreen = p.close >= p.open;
-              const color = isGreen ? "#00b59c" : "#f43f5e";
+          {/* ── Candlesticks ── */}
+          {chartMode === "candles" && candles.map((c, i) => {
+            const x = px(i, candles.length);
+            const oY = py(c.open);
+            const cY = py(c.close);
+            const hY = py(c.high);
+            const lY = py(c.low);
+            const green = c.close >= c.open;
+            const col = green ? "#00c9ad" : "#e95e4b";
+            const bodyTop = Math.min(oY, cY);
+            const bodyH = Math.max(1, Math.abs(oY - cY));
 
-              return (
-                <g key={idx}>
-                  {/* Shadow Wick (high/low) */}
-                  <line x1={x} y1={hY} x2={x} y2={lY} stroke={color} strokeWidth="1" />
-                  {/* Candle Body */}
-                  <rect
-                    x={x - candleW / 2}
-                    y={Math.min(oY, cY)}
-                    width={candleW}
-                    height={Math.max(1, Math.abs(oY - cY))}
-                    fill={color}
-                  />
-                </g>
-              );
-            })}
+            // Volume bar at bottom (20% of plot height)
+            const volBarH = (c.volume / maxVol) * plotH * 0.15;
+            const volBarY = padding.top + plotH - volBarH;
 
-          {/* SMA Line */}
-          {showSma && smaPoints.length > 0 && (
-            <path
-              d={smaPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ")}
-              fill="none"
-              stroke="#fbbf24"
-              strokeWidth="1.25"
-              strokeOpacity="0.8"
-            />
-          )}
-
-          {/* ACTIVE TRADES LIVE OVERLAYS */}
-          {relevantContracts.map((contract) => {
-            const y = getY(contract.entryPrice);
-            const isPurchaseHigher = contract.type === "Higher";
-            const borderCol = isPurchaseHigher ? "#00b59c" : "#f43f5e";
             return (
-              <g key={contract.id}>
-                {/* Horizontal reference price line */}
-                <line
-                  x1={padding}
-                  y1={y}
-                  x2={chartWidth - padding}
-                  y2={y}
-                  stroke={borderCol}
-                  strokeWidth="1"
-                  strokeDasharray="5 3"
-                />
-                
-                {/* Little directional flag on left */}
+              <g key={i}>
+                {/* Volume bar */}
                 <rect
-                  x={padding}
-                  y={y - 8}
-                  width="130"
-                  height="16"
-                  rx="3"
-                  fill="#0b0e11"
-                  stroke={borderCol}
-                  strokeWidth="1"
+                  x={x - candleW / 2} y={volBarY}
+                  width={candleW} height={volBarH}
+                  fill={`url(#${green ? "volGreen" : "volRed"})`}
+                  opacity="0.6"
                 />
-                <text
-                  x={padding + 6}
-                  y={y + 1}
-                  className="font-sans font-bold text-[8px] fill-slate-200"
-                  alignmentBaseline="middle"
-                >
-                  {isPurchaseHigher ? "▲ Rise Contract" : "▼ Fall Contract"} | KSh{contract.stake}
-                </text>
-
-                {/* Draw actual entry dot */}
-                <circle cx={chartWidth / 2} cy={y} r="4" fill={borderCol} />
+                {/* Wick */}
+                <line x1={x} y1={hY} x2={x} y2={bodyTop} stroke={col} strokeWidth="1" />
+                <line x1={x} y1={bodyTop + bodyH} x2={x} y2={lY} stroke={col} strokeWidth="1" />
+                {/* Body */}
+                <rect
+                  x={x - candleW / 2} y={bodyTop}
+                  width={candleW} height={bodyH}
+                  fill={green ? col : "transparent"}
+                  stroke={col}
+                  strokeWidth={green ? 0 : 1}
+                />
               </g>
             );
           })}
 
-          {/* Live Price Pulsing Indicator Dot on horizontal axis */}
-          {points.length > 0 && (
+          {/* ── SMA overlay ── */}
+          {showSma && smaPath && (
+            <path
+              d={smaPath}
+              fill="none"
+              stroke="#f59e0b"
+              strokeWidth="1.2"
+              strokeOpacity="0.85"
+              strokeLinejoin="round"
+            />
+          )}
+
+          {/* ── Active trade entry lines ── */}
+          {relevantContracts.map(contract => {
+            const y = py(contract.entryPrice);
+            const col = contract.type === "Higher" ? "#00b59c" : "#e95e4b";
+            return (
+              <g key={contract.id}>
+                <line
+                  x1={padding.left} y1={y}
+                  x2={chartW - padding.right} y2={y}
+                  stroke={col} strokeWidth="1" strokeDasharray="6 3" strokeOpacity="0.7"
+                />
+                <rect x={padding.left} y={y - 8} width="120" height="16" rx="3" fill="#0d1117" stroke={col} strokeWidth="0.75" />
+                <text x={padding.left + 6} y={y + 1} fontSize="8" fill="#e2e8f0" dominantBaseline="middle" fontFamily="monospace">
+                  {contract.type === "Higher" ? "▲ Rise" : "▼ Fall"} | KSh {contract.stake}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* ── Live price line + label ── */}
+          {lastPrice > 0 && (
             <g>
               <line
-                x1={padding}
-                y1={getY(lastPrice)}
-                x2={chartWidth - padding}
-                y2={getY(lastPrice)}
-                stroke={isUp ? "#00b59c" : "#f43f5e"}
-                strokeWidth="0.5"
-                strokeOpacity="0.7"
+                x1={padding.left} y1={py(lastPrice)}
+                x2={chartW - padding.right} y2={py(lastPrice)}
+                stroke={isUp ? "#00b59c" : "#e95e4b"}
+                strokeWidth="0.75" strokeDasharray="2 3" strokeOpacity="0.6"
               />
+              {/* Pulsing dot at latest price */}
               <circle
-                cx={getX(points.length - 1)}
-                cy={getY(lastPrice)}
-                r="6"
-                fill={isUp ? "#00b59c" : "#f43f5e"}
+                cx={chartMode === "line" ? px(ticks.length - 1, ticks.length) : px(candles.length - 1, candles.length)}
+                cy={py(lastPrice)}
+                r="5" fill={isUp ? "#00b59c" : "#e95e4b"} opacity="0.25"
                 className="animate-ping"
-                style={{ transformOrigin: "center" }}
-                opacity="0.4"
               />
               <circle
-                cx={getX(points.length - 1)}
-                cy={getY(lastPrice)}
-                r="3.5"
-                fill={isUp ? "#00b59c" : "#f43f5e"}
+                cx={chartMode === "line" ? px(ticks.length - 1, ticks.length) : px(candles.length - 1, candles.length)}
+                cy={py(lastPrice)}
+                r="3" fill={isUp ? "#00b59c" : "#e95e4b"}
               />
-              {/* Label background */}
+              {/* Price label on right axis */}
               <rect
-                x={chartWidth - padding - 62}
-                y={getY(lastPrice) - 7}
-                width="62"
-                height="14"
-                rx="2"
-                fill={isUp ? "#00b59c" : "#f43f5e"}
+                x={chartW - padding.right + 2} y={py(lastPrice) - 8}
+                width={padding.right - 4} height="16" rx="3"
+                fill={isUp ? "#00b59c" : "#e95e4b"}
               />
               <text
-                x={chartWidth - padding - 31}
-                y={getY(lastPrice)}
-                className="font-mono font-bold text-[8px] fill-white text-center"
-                textAnchor="middle"
-                alignmentBaseline="middle"
+                x={chartW - padding.right + (padding.right / 2)}
+                y={py(lastPrice)}
+                fontSize="8" fill="white" textAnchor="middle"
+                dominantBaseline="middle" fontFamily="monospace" fontWeight="bold"
               >
                 {lastPrice.toFixed(2)}
               </text>
@@ -468,22 +634,33 @@ export default function TradingChart({ asset, activeContracts, onTick }: Trading
         </svg>
       </div>
 
-      {/* Mini technical state summary */}
-      <div className="px-5 py-3 bg-[#0b0e11]/40 border-t border-[#1e222d] flex justify-between items-center text-xs text-slate-400">
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00b59c]"></span>
-            Volatility: <strong className="text-slate-200 font-mono">{(asset.volatility * 100).toFixed(0)} Hz</strong>
+      {/* ── Stats bar ── */}
+      <div className="px-4 py-2.5 bg-[#0d1117] border-t border-[#1e222d] flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-4 text-[10px]">
+          <span className="flex items-center gap-1.5 text-[#6c737f]">
+            <span className="w-2 h-2 rounded-full" style={{ background: "#00b59c" }}></span>
+            O: <span className="text-white font-mono">{candles[candles.length-1]?.open.toFixed(4) ?? "—"}</span>
           </span>
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
-            Spread: <strong className="text-slate-200 font-mono">0.02 KES</strong>
+          <span className="flex items-center gap-1.5 text-[#6c737f]">
+            H: <span className="text-[#00b59c] font-mono">{candles[candles.length-1]?.high.toFixed(4) ?? "—"}</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-[#6c737f]">
+            L: <span className="text-[#e95e4b] font-mono">{candles[candles.length-1]?.low.toFixed(4) ?? "—"}</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-[#6c737f]">
+            C: <span className="text-white font-mono">{candles[candles.length-1]?.close.toFixed(4) ?? "—"}</span>
           </span>
         </div>
-        <div>
-          <span className="text-slate-500 mr-1 font-mono">Precision:</span>
-          <span className="font-mono bg-[#1e222d] text-slate-300 px-1.5 py-0.5 rounded text-[10px]">
-            Tick walk 1.0s
+        <div className="flex items-center gap-3 text-[10px] text-[#6c737f]">
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            SMA(14)
+          </span>
+          <span className="font-mono text-[9px] bg-[#1e222d] text-slate-400 px-2 py-0.5 rounded">
+            {TICK_INTERVAL_MS}ms tick
+          </span>
+          <span className={`font-mono text-[9px] px-2 py-0.5 rounded font-bold ${isUp ? "bg-[#00b59c]/10 text-[#00b59c]" : "bg-[#e95e4b]/10 text-[#e95e4b]"}`}>
+            {isUp ? "▲ BULLISH" : "▼ BEARISH"}
           </span>
         </div>
       </div>
