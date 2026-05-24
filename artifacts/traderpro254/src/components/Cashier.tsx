@@ -78,7 +78,7 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
       const txId = "PRO" + Math.random().toString(36).substring(2, 6).toUpperCase() + Date.now().toString().slice(-4);
       setActiveTxId(txId);
 
-      const response = await fetch("/api/payhero/stk", {
+      const response = await fetch("https://tradepro254.com/api/payhero/stk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
@@ -156,7 +156,7 @@ export default function Cashier({ liveBalance, onUpdateBalance, accountType, tra
   // Real direct polling check for actual M-Pesa push callback confirmation
   const triggerAutoSyncUpdate = async (finalAmount: number, txReference: string) => {
     try {
-      const checkResponse = await fetch(`/api/payhero/status?txId=${encodeURIComponent(txReference)}&userEmail=${userProfile ? encodeURIComponent(userProfile.email) : ""}`);
+      const checkResponse = await fetch(`https://tradepro254.com/api/payhero/status?txId=${encodeURIComponent(txReference)}&userEmail=${userProfile ? encodeURIComponent(userProfile.email) : ""}`);
       const checkData = await checkResponse.json();
       
       if (checkResponse.ok && checkData.tx) {
