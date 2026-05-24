@@ -33,6 +33,11 @@ export default async function handler(req: any, res: any) {
     const db = readDb();
     let updated = false;
 
+    if (Object.keys(db).length === 0) {
+      console.log("[PayHero Callback] Database unavailable (expected on Vercel). Callback acknowledged but not processed.");
+      return res.status(200).send("Callback received - database unavailable");
+    }
+
     for (const email of Object.keys(db)) {
       const user = db[email];
       if (!user.transactions) continue;

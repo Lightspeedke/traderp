@@ -6,6 +6,11 @@ export const DB_PATH = path.join(process.cwd(), "db_users.json");
 
 export function readDb(): any {
   try {
+    // Check if we're on Vercel (no persistent file system)
+    if (process.env.VERCEL) {
+      console.warn("[Database] File system reads disabled on Vercel");
+      return {};
+    }
     if (fs.existsSync(DB_PATH)) {
       return JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
     }
@@ -17,6 +22,11 @@ export function readDb(): any {
 
 export function writeDb(data: any) {
   try {
+    // Check if we're on Vercel (no persistent file system)
+    if (process.env.VERCEL) {
+      console.warn("[Database] File system writes disabled on Vercel. Use Firebase Firestore for production.");
+      return;
+    }
     fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), "utf-8");
   } catch (err) {
     console.error("Error writing database:", err);

@@ -91,27 +91,31 @@ export default async function handler(req: any, res: any) {
     if (isPayHeroSuccess) {
       console.log(`[PayHero STK] ✓ PayHero accepted the STK push request`);
       
-      // Register pending transaction
+      // Register pending transaction (non-blocking - don't fail if DB write fails)
       if (userEmail) {
         try {
           const db = readDb();
-          const user = db[userEmail.toLowerCase().trim()];
-          if (user) {
-            const pendingTx = {
-              id: txId,
-              type: "Deposit",
-              phoneNumber: formattedPhone,
-              amount: Math.round(amount),
-              status: "Pending",
-              timestamp: Date.now()
-            };
-            if (!user.transactions) user.transactions = [];
-            user.transactions.unshift(pendingTx);
-            writeDb(db);
-            console.log(`[PayHero STK] ✓ Registered pending transaction for ${userEmail}`);
+          if (Object.keys(db).length > 0) {  // Only attempt if DB is available
+            const user = db[userEmail.toLowerCase().trim()];
+            if (user) {
+              const pendingTx = {
+                id: txId,
+                type: "Deposit",
+                phoneNumber: formattedPhone,
+                amount: Math.round(amount),
+                status: "Pending",
+                timestamp: Date.now()
+              };
+              if (!user.transactions) user.transactions = [];
+              user.transactions.unshift(pendingTx);
+              writeDb(db);
+              console.log(`[PayHero STK] ✓ Registered pending transaction for ${userEmail}`);
+            }
+          } else {
+            console.log(`[PayHero STK] Database unavailable (expected on Vercel), payment still sent to ${payheroPhone}`);
           }
         } catch (dbErr) {
-          console.warn(`[PayHero STK] DB write error:`, dbErr);
+          console.warn(`[PayHero STK] DB error (non-blocking):`, dbErr);
         }
       }
 
