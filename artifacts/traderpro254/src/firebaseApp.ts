@@ -1,9 +1,10 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, Auth } from "firebase/auth";
 import { firebaseConfig } from "./firebaseConfig";
+import type { FirebaseApp } from "firebase/app";
 
-let app;
-let auth;
+let app: FirebaseApp;
+let auth: Auth;
 
 try {
   app = initializeApp(firebaseConfig);
@@ -12,7 +13,7 @@ try {
 } catch (error) {
   console.error("Firebase initialization failed:", error);
   // Create a dummy auth object to prevent crashes
-  auth = {} as any;
+  auth = {} as Auth;
 }
 
 export { auth };

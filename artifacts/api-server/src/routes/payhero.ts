@@ -170,11 +170,28 @@ router.post("/payhero/stk", async (req, res) => {
         message: `STK Push sent to ${payheroPhone}`,
       });
     } else {
-      res.status(apiResponse.status || 400).json({
-        success: false,
-        error: result.message || result.error || result.detail || "M-Pesa network busy. Please retry.",
-        payhero: result,
-      });
+      // Check if the error is authentication-related
+      if (apiResponse.status === 401 || apiResponse.status === 403) {
+        res.status(apiResponse.status).json({
+          success: false,
+          error: "PayHero authentication failed. Please check PAYHERO_BASIC_AUTH_TOKEN configuration.",
+          details: result.message || result.error || result.detail || "Authentication failed",
+          payhero: result,
+        });
+      } else if (apiResponse.status === 404) {
+        res.status(apiResponse.status).json({
+          success: false,
+          error: "PayHero API endpoint not found. Check PAYHERO_BASIC_AUTH_TOKEN and API URL configuration.",
+          details: result.message || result.error || result.detail || "Endpoint not found",
+          payhero: result,
+        });
+      } else {
+        res.status(apiResponse.status || 400).json({
+          success: false,
+          error: result.message || result.error || result.detail || "M-Pesa network busy. Please retry.",
+          payhero: result,
+        });
+      }
     }
   } catch (error: any) {
     const message = error?.name === "AbortError"

@@ -35,3 +35,4 @@ externalPort = 80
 
 [userenv.shared]
 PAYHERO_CHANNEL_ID = "8402"
+PAYHERO_BASIC_AUTH_TOKEN = "Basic enhwcVpnVGVRZnp0QnNpdUVBS2s6Wng4Z3lwYURGSkxMWEFaQjRpZzhrTUNxSzh3WGNHVEdXZ21TQmI1WQ=="
