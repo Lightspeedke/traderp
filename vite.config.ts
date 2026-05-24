@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, type Plugin} from 'vite';
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 function localApiPlugin(): Plugin {
   return {
     name: 'local-api-routes',
@@ -80,7 +82,7 @@ export default defineConfig(() => {
   const disableHmr = process.env.DISABLE_HMR === 'true';
 
   return {
-    plugins: [localApiPlugin(), react(), tailwindcss()],
+    plugins: [localApiPlugin(), react(), tailwindcss(), cloudflare()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
