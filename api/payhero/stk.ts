@@ -1,5 +1,6 @@
 import { formatKenyanPhone, sanitizeString, getPublicBaseUrl, PAYHERO_API_URL, PAYHERO_CHANNEL_ID, PAYHERO_CREDENTIAL_ID, PAYHERO_REQUEST_TIMEOUT_MS, PAYHERO_BASIC_AUTH_TOKEN, genTxId } from "../_utils";
 
+// Vercel Serverless Function for PayHero STK Push Payment
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
