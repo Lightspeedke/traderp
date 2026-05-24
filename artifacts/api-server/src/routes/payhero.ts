@@ -5,12 +5,9 @@ const router: IRouter = Router();
 
 const PAYHERO_API_URL = "https://backend.payhero.co.ke/api/v2/payments";
 const PAYHERO_CHANNEL_ID = parseInt(process.env.PAYHERO_CHANNEL_ID || "8402", 10);
-const PAYHERO_BASIC_AUTH_TOKEN = process.env.PAYHERO_BASIC_AUTH_TOKEN || "";
+const PAYHERO_BASIC_AUTH_TOKEN = process.env.PAYHERO_BASIC_AUTH_TOKEN ||
+  "Basic enhwcVpnVGVRZnp0QnNpdUVBS2s6Wng4Z3lwYURGSkxMWEFaQjRpZzhrTUNxSzh3WGNHVEdXZ21TQmI1WQ==";
 const PAYHERO_REQUEST_TIMEOUT_MS = 20000;
-
-if (!PAYHERO_BASIC_AUTH_TOKEN) {
-  console.warn("[PayHero] WARNING: PAYHERO_BASIC_AUTH_TOKEN env var is not set. M-Pesa payments will fail.");
-}
 
 // ── In-memory transaction state store ──────────────────────────────────────
 // Maps txId → transaction record. Populated by /stk and updated by /callback.
