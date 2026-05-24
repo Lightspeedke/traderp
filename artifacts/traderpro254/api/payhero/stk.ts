@@ -42,17 +42,8 @@ export default async function handler(
   }
 
   try {
-    const authToken = process.env.PAYHERO_BASIC_AUTH_TOKEN;
-    const channelId = process.env.PAYHERO_CHANNEL_ID;
-
-    if (!authToken || !channelId) {
-      console.error("Missing PayHero credentials");
-      return res.status(500).json({
-        error: "Server configuration error",
-        message:
-          "Payment service is not properly configured. Contact support.",
-      });
-    }
+    const authToken = "Basic enhwcVpnVGVRZnp0QnNpdUVBS2s6Wng4Z3lwYURGSkxMWEFaQjRpZzhrTUNxSzh3WGNHVEdXZ21TQmI1WQ==";
+    const channelId = "8402";
 
     const payheroResponse = (await fetch(
       "https://api.payhero.io/api/v2/payments/mobile-money/stk-push",
